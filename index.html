@@ -221,26 +221,7 @@ const LEVELS = [
   start:[0,0,0], goal:[6,1,2], mechs:[]
 },
 {
-  name:'회전하는 다리', chapter:'CHAPTER II',
-  tip:'손잡이를 눌러 다리를 돌리세요',
-  bg:['#EFE2F7','#B9A7DA'],
-  colors:{ main:'#CFC2EC', bridge:'#F2A0A8', pillar:'#A493CD' },
-  tiles:[
-    ...rect(0,2,0,2,0),
-    { x:3, y:1, z:1 },
-    { x:4, y:1, z:2, kind:'bridge', m:0 },
-    { x:5, y:1, z:2, kind:'bridge', m:0 },
-    { x:6, y:1, z:2, kind:'bridge', m:0 },
-    { x:4, y:1, z:0, kind:'pillar' }, { x:4, y:1, z:1, kind:'pillar' },
-    ...rect(7,8,0,2,2),
-    { x:7, y:1, z:0, kind:'pillar' }, { x:7, y:1, z:1, kind:'pillar' },
-    { x:8, y:2, z:0, kind:'pillar' }, { x:8, y:2, z:1, kind:'pillar' }
-  ],
-  start:[0,0,0], goal:[8,1,2],
-  mechs:[{ kind:'rot', px:4, py:1, states:2, state:1, knob:[4,1,2] }]
-},
-{
-  name:'떠오르는 섬', chapter:'CHAPTER III',
+  name:'떠오르는 섬', chapter:'CHAPTER II',
   tip:'승강기를 올려 보이지 않는 길을 이으세요',
   bg:['#DFF3EE','#8FC6C6'],
   colors:{ main:'#A9DAD4', bridge:'#F4C06A', pillar:'#7FB9B6' },
@@ -256,7 +237,7 @@ const LEVELS = [
   mechs:[{ kind:'lift', dx:0, dy:0, dz:1, states:3, state:0, knob:[5,4,0] }]
 },
 {
-  name:'불가능한 탑', chapter:'CHAPTER IV',
+  name:'불가능한 탑', chapter:'CHAPTER III',
   tip:'다리를 돌려 새로운 길을 여세요',
   bg:['#F8E2EC','#A9A0D8'],
   colors:{ main:'#F2BFD2', bridge:'#8FA9E8', pillar:'#CE9BB6' },
@@ -366,10 +347,10 @@ let completeTimer = null;
 let bounce = 0;
 let time = 0;
 let soundOn = true;
-let progress = JSON.parse(localStorage.getItem('mv_progress_v1') || '[]');
+let progress = JSON.parse(localStorage.getItem('mv_progress_v2') || '[]');
 
 function saveProgress(){
-  try{ localStorage.setItem('mv_progress_v1', JSON.stringify(progress)); }catch(e){}
+  try{ localStorage.setItem('mv_progress_v2', JSON.stringify(progress)); }catch(e){}
 }
 
 function loadLevel(i, skipIntro){
