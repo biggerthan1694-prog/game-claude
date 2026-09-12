@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no"/>
+<meta name="theme-color" content="#F0AE9A"/>
+<title>모뉴먼트 밸리 · 착시의 계곡</title>
+<style>
+:root{
+  --bg1:#FBE3C0; --bg2:#F0AE9A;
+  --ink:#3E3160; --paper:#FFF8EE;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;margin:0;padding:0;}
+body{
+  background:linear-gradient(165deg,var(--bg1) 0%,var(--bg2) 100%);
+  transition:background 900ms ease;
+  font-family:"Apple SD Gothic Neo","Pretendard","Malgun Gothic","Noto Sans KR",system-ui,-apple-system,sans-serif;
+  color:var(--ink);
+  overflow:hidden;
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;
+}
+canvas#stage{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;}
+
+.hud{position:fixed;left:0;right:0;top:0;padding:16px 18px;display:flex;
+  justify-content:space-between;align-items:flex-start;pointer-events:none;
+  padding-top:max(16px,env(safe-area-inset-top));}
+.chapter{font-size:10px;letter-spacing:.34em;opacity:.5;font-weight:700;}
+.title{font-size:18px;letter-spacing:.04em;font-weight:700;margin-top:4px;opacity:.85;}
+.tools{display:flex;gap:8px;pointer-events:auto;}
+.icon{width:38px;height:38px;border-radius:50%;border:none;cursor:pointer;
+  background:rgba(255,255,255,.45);color:var(--ink);font-size:15px;line-height:1;
+  display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  transition:transform .18s ease,background .18s ease;}
+.icon:hover{background:rgba(255,255,255,.75);transform:translateY(-1px);}
+.icon:active{transform:scale(.92);}
+
+.tip{position:fixed;left:50%;bottom:74px;transform:translateX(-50%);
+  font-size:13px;letter-spacing:.02em;opacity:0;pointer-events:none;
+  background:rgba(255,255,255,.42);padding:8px 16px;border-radius:999px;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  transition:opacity .6s ease;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis;}
+.tip.on{opacity:.85;}
+
+.dots{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);
+  display:flex;gap:10px;align-items:center;
+  padding-bottom:max(0px,env(safe-area-inset-bottom));}
+.dot{width:9px;height:9px;border-radius:50%;border:none;padding:0;cursor:pointer;
+  background:rgba(62,49,96,.22);transition:all .25s ease;}
+.dot.done{background:rgba(62,49,96,.45);}
+.dot.on{background:var(--ink);transform:scale(1.45);}
+.dot:disabled{opacity:.3;cursor:default;}
+
+.overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(255,246,235,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  opacity:0;pointer-events:none;transition:opacity .5s ease;padding:24px;}
+.overlay.on{opacity:1;pointer-events:auto;}
+.card{text-align:center;max-width:400px;width:100%;}
+.card .sup{font-size:11px;letter-spacing:.34em;opacity:.55;font-weight:700;margin-bottom:14px;}
+.card h1{font-size:30px;margin:0 0 6px;letter-spacing:.1em;font-weight:800;line-height:1.25;}
+.card h2{font-size:23px;margin:0 0 10px;letter-spacing:.04em;font-weight:700;}
+.card p{font-size:14px;line-height:1.75;opacity:.65;margin:0 0 26px;}
+.btn{border:none;cursor:pointer;background:var(--ink);color:var(--paper);
+  font-size:14px;font-weight:700;letter-spacing:.08em;padding:13px 30px;border-radius:999px;
+  font-family:inherit;transition:transform .18s ease,opacity .18s ease;margin:0 5px;}
+.btn.ghost{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1.5px rgba(62,49,96,.3);}
+.btn:hover{transform:translateY(-2px);}
+.btn:active{transform:scale(.95);}
+
+.flash{position:fixed;inset:0;pointer-events:none;background:#fff;opacity:0;
+  transition:opacity .45s ease;}
+.flash.on{opacity:1;}
+
+.intro{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;pointer-events:none;opacity:0;transition:opacity .7s ease;}
+.intro.on{opacity:1;}
+.intro .sup{font-size:11px;letter-spacing:.4em;opacity:.5;font-weight:700;}
+.intro .nm{font-size:27px;font-weight:800;letter-spacing:.14em;margin-top:10px;}
+.intro .ln{width:46px;height:2px;background:currentColor;opacity:.3;margin-top:16px;}
+@media (max-width:420px){ .card h1{font-size:25px;} .tip{bottom:66px;font-size:12px;} }
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+
+<div class="hud">
+  <div>
+    <div class="chapter" id="chapter">CHAPTER I</div>
+    <div class="title" id="levelName">첫 걸음</div>
+  </div>
+  <div class="tools">
+    <button class="icon" id="btnSound" title="소리">&#128266;</button>
+    <button class="icon" id="btnRestart" title="다시 시작">&#8635;</button>
+  </div>
+</div>
+
+<div class="tip" id="tip"></div>
+<div class="dots" id="dots"></div>
+<div class="intro" id="intro"><div class="sup" id="introSup"></div><div class="nm" id="introName"></div><div class="ln"></div></div>
+<div class="overlay" id="overlay"></div>
+<div class="flash" id="flash"></div>
+
+<script>
+"use strict";
+//--CORE-START--
+/* ============================================================
+   기하학 코어 — 아이소메트릭 투영과 "불가능한 연결" 규칙
+   ------------------------------------------------------------
+   화면 좌표:  sx = (x - y) * TW
+               sy = (x + y) * TH - z * TZ
+   두 타일은 "화면에서 한 칸 옆"으로 보이면 이어진다.
+   실제 3D 거리는 상관없다 → 이것이 착시 통로의 정체.
+   ============================================================ */
+const TW = 32, TH = 16, TZ = 32;
+
+function proj(x, y, z){ return { sx:(x - y) * TW, sy:(x + y) * TH - z * TZ }; }
+
+/* 화면상 한 칸 이동인가?  sx차이=±TW 이고 sy차이=±TH 이면 참 */
+function isStep(a, b){
+  const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+  const u = dx - dy;             // sx 차이 / TW
+  const v = dx + dy - 2 * dz;    // sy 차이 / TH
+  return Math.abs(u) === 1 && Math.abs(v) === 1;
+}
+
+/* 타일 묶음 생성기 */
+function rect(x0, x1, y0, y1, z, kind, extra){
+  const out = [];
+  for(let x = x0; x <= x1; x++)
+    for(let y = y0; y <= y1; y++)
+      out.push(Object.assign({ x, y, z, kind: kind || 'main' }, extra || {}));
+  return out;
+}
+
+/* 장치(회전 다리 / 승강기)가 적용된 타일 위치. s는 실수여도 된다(애니메이션) */
+function tilePos(level, t, states){
+  if(t.m === undefined) return { x:t.x, y:t.y, z:t.z };
+  const m = level.mechs[t.m], s = states[t.m];
+  if(m.kind === 'rot'){
+    const u = t.x - m.px, v = t.y - m.py;
+    const a = s * Math.PI / 2, cs = Math.cos(a), sn = Math.sin(a);
+    return { x:m.px + u * cs + v * sn, y:m.py - u * sn + v * cs, z:t.z };
+  }
+  return { x:t.x + (m.dx||0) * s, y:t.y + (m.dy||0) * s, z:t.z + (m.dz||0) * s };
+}
+
+function roundPos(p){ return { x:Math.round(p.x), y:Math.round(p.y), z:Math.round(p.z) }; }
+
+/* 특정 장치 상태에서의 통행 그래프.
+   - 다른 타일에 정확히 가려진 타일(= (k,k,k) 방향으로 겹친 타일)은 보이지 않으므로 제외
+   - 보이는 walkable 타일끼리 isStep 이면 연결 */
+function buildGraph(level, states){
+  const n = level.tiles.length;
+  const pos = new Array(n), key = new Array(n), map = new Map();
+  for(let i = 0; i < n; i++){
+    pos[i] = roundPos(tilePos(level, level.tiles[i], states));
+    key[i] = pos[i].x + ',' + pos[i].y + ',' + pos[i].z;
+    map.set(key[i], i);
+  }
+  const hidden = new Array(n).fill(false);
+  for(let i = 0; i < n; i++){
+    const p = pos[i];
+    for(let k = 1; k <= 24; k++){
+      if(map.has((p.x+k) + ',' + (p.y+k) + ',' + (p.z+k))){ hidden[i] = true; break; }
+    }
+  }
+  const walk = i => level.tiles[i].kind !== 'pillar' && !hidden[i];
+  const adj = new Map();
+  for(let i = 0; i < n; i++) if(walk(i)) adj.set(i, []);
+  for(let i = 0; i < n; i++){
+    if(!walk(i)) continue;
+    for(let j = i + 1; j < n; j++){
+      if(!walk(j)) continue;
+      if(isStep(pos[i], pos[j])){ adj.get(i).push(j); adj.get(j).push(i); }
+    }
+  }
+  return { adj, pos, hidden };
+}
+
+/* 시작 타일에서 목표 타일까지의 최단 경로(타일 인덱스 배열) */
+function findPath(graph, from, to){
+  if(from === to) return [];
+  if(!graph.adj.has(from) || !graph.adj.has(to)) return null;
+  const prev = new Map([[from, -1]]);
+  const q = [from];
+  for(let h = 0; h < q.length; h++){
+    const cur = q[h];
+    for(const nx of graph.adj.get(cur)){
+      if(prev.has(nx)) continue;
+      prev.set(nx, cur);
+      if(nx === to){
+        const path = [];
+        let c = to;
+        while(c !== from){ path.push(c); c = prev.get(c); }
+        return path.reverse();
+      }
+      q.push(nx);
+    }
+  }
+  return null;
+}
+
+/* ============================================================
+   레벨 데이터
+   kind: main(길) / bridge(장치) / pillar(장식, 통행불가)
+   m: 소속 장치 인덱스
+   ============================================================ */
+const LEVELS = [
+{
+  name:'첫 걸음', chapter:'CHAPTER I',
+  tip:'타일을 눌러 이다를 움직이세요',
+  bg:['#FBE3C0','#F0AE9A'],
+  colors:{ main:'#F3D3A0', bridge:'#E98A7B', pillar:'#DFB88C' },
+  tiles:[
+    ...rect(0,2,0,2,0),
+    { x:3, y:2, z:1 }, { x:4, y:2, z:2 },
+    ...rect(5,6,1,2,2),
+    ...rect(5,6,2,2,0,'pillar'), ...rect(5,6,2,2,1,'pillar')
+  ],
+  start:[0,0,0], goal:[6,1,2], mechs:[]
+},
+{
+  name:'회전하는 다리', chapter:'CHAPTER II',
+  tip:'손잡이를 눌러 다리를 돌리세요',
+  bg:['#EFE2F7','#B9A7DA'],
+  colors:{ main:'#CFC2EC', bridge:'#F2A0A8', pillar:'#A493CD' },
+  tiles:[
+    ...rect(0,2,0,2,0),
+    { x:3, y:1, z:1 },
+    { x:4, y:1, z:2, kind:'bridge', m:0 },
+    { x:5, y:1, z:2, kind:'bridge', m:0 },
+    { x:6, y:1, z:2, kind:'bridge', m:0 },
+    { x:4, y:1, z:0, kind:'pillar' }, { x:4, y:1, z:1, kind:'pillar' },
+    ...rect(7,8,0,2,2),
+    { x:7, y:1, z:0, kind:'pillar' }, { x:7, y:1, z:1, kind:'pillar' },
+    { x:8, y:2, z:0, kind:'pillar' }, { x:8, y:2, z:1, kind:'pillar' }
+  ],
+  start:[0,0,0], goal:[8,1,2],
+  mechs:[{ kind:'rot', px:4, py:1, states:2, state:1, knob:[4,1,2] }]
+},
+{
+  name:'떠오르는 섬', chapter:'CHAPTER III',
+  tip:'승강기를 올려 보이지 않는 길을 이으세요',
+  bg:['#DFF3EE','#8FC6C6'],
+  colors:{ main:'#A9DAD4', bridge:'#F4C06A', pillar:'#7FB9B6' },
+  tiles:[
+    ...rect(0,2,0,2,0),
+    { x:5, y:4, z:0, kind:'bridge', m:0 },
+    { x:6, y:4, z:0, kind:'bridge', m:0 },
+    ...rect(7,9,3,5,2),
+    { x:7, y:4, z:0, kind:'pillar' }, { x:7, y:4, z:1, kind:'pillar' },
+    { x:9, y:5, z:0, kind:'pillar' }, { x:9, y:5, z:1, kind:'pillar' }
+  ],
+  start:[0,0,0], goal:[9,5,2],
+  mechs:[{ kind:'lift', dx:0, dy:0, dz:1, states:3, state:0, knob:[5,4,0] }]
+},
+{
+  name:'불가능한 탑', chapter:'CHAPTER IV',
+  tip:'다리를 돌려 새로운 길을 여세요',
+  bg:['#F8E2EC','#A9A0D8'],
+  colors:{ main:'#F2BFD2', bridge:'#8FA9E8', pillar:'#CE9BB6' },
+  tiles:[
+    ...rect(0,2,0,2,0),
+    { x:3, y:2, z:1 }, { x:4, y:2, z:2 },
+    ...rect(5,6,2,3,2),
+    { x:5, y:3, z:0, kind:'pillar' }, { x:5, y:3, z:1, kind:'pillar' },
+    { x:7, y:3, z:2, kind:'bridge', m:0 },
+    { x:8, y:3, z:2, kind:'bridge', m:0 },
+    { x:9, y:3, z:2, kind:'bridge', m:0 },
+    { x:8, y:3, z:0, kind:'pillar' }, { x:8, y:3, z:1, kind:'pillar' },
+    ...rect(7,9,0,1,2),
+    { x:9, y:1, z:0, kind:'pillar' }, { x:9, y:1, z:1, kind:'pillar' },
+    ...rect(12,13,2,3,4)
+  ],
+  start:[0,0,0], goal:[13,3,4],
+  mechs:[{ kind:'rot', px:8, py:3, states:2, state:0, knob:[8,3,2] }]
+}
+];
+
+/* 좌표로 타일 인덱스 찾기(설계 좌표 기준) */
+function tileAt(level, c){
+  return level.tiles.findIndex(t => t.x === c[0] && t.y === c[1] && t.z === c[2]);
+}
+//--CORE-END--
+</script>
+<script>
+/* ============================================================
+   렌더링 & 게임 루프
+   ============================================================ */
+const cv = document.getElementById('stage');
+const ctx = cv.getContext('2d');
+let DPR = Math.min(2, window.devicePixelRatio || 1);
+let W, H, SCALE = 4.4;
+
+function resize(){
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR;
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  SCALE = Math.min(W, H) / 150;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener('resize', resize);
+
+/* ---------- 색 유틸 ---------- */
+function shade(hex, amt){
+  const n = parseInt(hex.slice(1), 16);
+  let r = (n >> 16) + amt, g = ((n >> 8) & 0xff) + amt, b = (n & 0xff) + amt;
+  r = Math.max(0, Math.min(255, r)); g = Math.max(0, Math.min(255, g)); b = Math.max(0, Math.min(255, b));
+  return '#' + (0x1000000 + r * 0x10000 + g * 0x100 + b).toString(16).slice(1);
+}
+function lerp(a, b, t){ return a + (b - a) * t; }
+function lerpColor(c1, c2, t){
+  const p = h => [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
+  const [r1,g1,b1] = p(c1), [r2,g2,b2] = p(c2);
+  const r = Math.round(lerp(r1,r2,t)), g = Math.round(lerp(g1,g2,t)), b = Math.round(lerp(b1,b2,t));
+  return `rgb(${r},${g},${b})`;
+}
+function easeInOut(t){ return t<0.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2; }
+
+/* ---------- 게임 상태 ---------- */
+let levelIdx = 0;
+let level, states, camX = 0, camY = 0, camTargetX = 0, camTargetY = 0;
+let hero, path, walking = false, walkT = 0, walkFrom, walkTo, walkDur;
+let mechAnim = []; // { idx, from, to, t }
+let solved = false;
+let bounce = 0;
+let time = 0;
+let soundOn = true;
+let progress = JSON.parse(localStorage.getItem('mv_progress_v1') || '[]');
+
+function saveProgress(){
+  try{ localStorage.setItem('mv_progress_v1', JSON.stringify(progress)); }catch(e){}
+}
+
+function loadLevel(i, skipIntro){
+  levelIdx = i;
+  const src = LEVELS[i];
+  level = JSON.parse(JSON.stringify(src));
+  states = level.mechs.map(m => m.state);
+  mechAnim = [];
+  const startIdx = tileAt(level, level.start);
+  hero = { tile:startIdx, x:level.start[0], y:level.start[1], z:level.start[2] };
+  path = null; walking = false; solved = false; bounce = 0;
+  document.getElementById('chapter').textContent = level.chapter;
+  document.getElementById('levelName').textContent = level.name;
+  document.body.style.setProperty('--bg1', level.bg[0]);
+  document.body.style.setProperty('--bg2', level.bg[1]);
+  document.body.style.background = `linear-gradient(165deg, ${level.bg[0]} 0%, ${level.bg[1]} 100%)`;
+  const g = buildGraph(level, states);
+  const p0 = g.pos[startIdx];
+  camTargetX = camX = (p0.x - p0.y) * TW;
+  camTargetY = camY = (p0.x + p0.y) * TH - p0.z * TZ;
+  showTip(level.tip);
+  buildDots();
+  if(!skipIntro) showIntro(level.chapter, level.name);
+}
+
+function showIntro(sup, nm){
+  const el = document.getElementById('intro');
+  document.getElementById('introSup').textContent = sup;
+  document.getElementById('introName').textContent = nm;
+  el.classList.add('on');
+  setTimeout(()=>el.classList.remove('on'), 1600);
+}
+
+let tipTimer = null;
+function showTip(text){
+  const el = document.getElementById('tip');
+  el.textContent = text;
+  el.classList.add('on');
+  clearTimeout(tipTimer);
+  tipTimer = setTimeout(()=>el.classList.remove('on'), 4200);
+}
+
+function buildDots(){
+  const wrap = document.getElementById('dots');
+  wrap.innerHTML = '';
+  LEVELS.forEach((lv, i) => {
+    const b = document.createElement('button');
+    b.className = 'dot' + (i === levelIdx ? ' on' : (progress[i] ? ' done' : ''));
+    if(i > 0 && !progress[i-1] && i !== levelIdx) b.disabled = true;
+    b.title = lv.name;
+    b.addEventListener('click', () => { if(!b.disabled) loadLevel(i); });
+    wrap.appendChild(b);
+  });
+}
+
+/* ---------- 오디오(간단한 합성음, 외부 파일 없음) ---------- */
+let actx = null;
+function tone(freq, dur, type, gain){
+  if(!soundOn) return;
+  try{
+    if(!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type || 'sine'; o.frequency.value = freq;
+    g.gain.value = gain || 0.05;
+    o.connect(g); g.connect(actx.destination);
+    const t0 = actx.currentTime;
+    g.gain.setValueAtTime(g.gain.value, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.start(t0); o.stop(t0 + dur + 0.02);
+  }catch(e){}
+}
+function sfxStep(){ tone(420 + Math.random()*60, 0.12, 'sine', 0.04); }
+function sfxMech(){ tone(260, 0.35, 'triangle', 0.05); }
+function sfxWin(){ [523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,0.5,'sine',0.06), i*95)); }
+
+/* ---------- 타일 클릭 처리 ---------- */
+function startWalk(){
+  if(!path || !path.length){ walking = false; return; }
+  const nextTile = path.shift();
+  const g = buildGraph(level, states);
+  const p = g.pos[nextTile];
+  walkFrom = { x:hero.x, y:hero.y, z:hero.z };
+  walkTo = { x:p.x, y:p.y, z:p.z };
+  walkT = 0;
+  walkDur = 0.28;
+  walking = true;
+  hero.tile = nextTile;
+  sfxStep();
+}
+
+function tryGoTo(tileIdx){
+  if(walking || solved) return;
+  const g = buildGraph(level, states);
+  const heroTileNow = findNearestTileIdx();
+  const p = findPath(g, heroTileNow, tileIdx);
+  if(p === null) return;
+  path = p;
+  startWalk();
+}
+
+function findNearestTileIdx(){
+  const g = buildGraph(level, states);
+  let best = -1, bd = Infinity;
+  for(const [i] of g.adj){
+    const p = g.pos[i];
+    const d = Math.hypot(p.x-hero.x, p.y-hero.y, (p.z-hero.z)*1.2);
+    if(d < bd){ bd = d; best = i; }
+  }
+  return best;
+}
+
+function toggleMech(mIdx){
+  if(walking) return;
+  const m = level.mechs[mIdx];
+  const anim = mechAnim.find(a => a.idx === mIdx);
+  if(anim) return;
+  const from = states[mIdx];
+  const to = (from + 1) % m.states;
+  mechAnim.push({ idx:mIdx, from, to, t:0 });
+  states[mIdx] = to;
+  sfxMech();
+}
+
+/* ---------- 입력: 화면좌표 -> 타일/장치 히트테스트 ---------- */
+function screenToWorld(px, py){
+  return { wx: (px - W/2) / SCALE - camX, wy: (py - H*0.42) / SCALE - camY };
+}
+
+function pickAt(px, py){
+  const { wx, wy } = screenToWorld(px, py);
+  // 장치 손잡이 먼저 검사(작은 원)
+  for(let mi = 0; mi < level.mechs.length; mi++){
+    const m = level.mechs[mi];
+    if(!m.knob) continue;
+    const kp = proj(m.knob[0], m.knob[1], m.knob[2]);
+    const dx = wx - kp.sx, dy = wy - (kp.sy - TZ*0.9);
+    if(Math.hypot(dx,dy) < 9) return { type:'mech', idx:mi };
+  }
+  const g = buildGraph(level, states);
+  let best = -1, bestDepth = -Infinity;
+  for(const [i] of g.adj){
+    const p = g.pos[i];
+    const sp = proj(p.x, p.y, p.z);
+    const dx = wx - sp.sx, dy = wy - sp.sy;
+    // 다이아몬드(마름모) 히트테스트
+    if(Math.abs(dx)/TW + Math.abs(dy)/TH <= 1.05){
+      const depth = p.x + p.y + p.z*3;
+      if(depth > bestDepth){ bestDepth = depth; best = i; }
+    }
+  }
+  if(best >= 0) return { type:'tile', idx:best };
+  return null;
+}
+
+cv.addEventListener('pointerdown', e => {
+  const rect = cv.getBoundingClientRect();
+  const px = e.clientX - rect.left, py = e.clientY - rect.top;
+  const hit = pickAt(px, py);
+  if(!hit) return;
+  if(hit.type === 'mech') toggleMech(hit.idx);
+  else tryGoTo(hit.idx);
+});
+
+/* ---------- 캐릭터 그리기 ---------- */
+function drawHero(sx, sy, facing, bob){
+  ctx.save();
+  ctx.translate(sx, sy - bob);
+  // 그림자
+  ctx.save();
+  ctx.translate(0, bob);
+  ctx.fillStyle = 'rgba(62,49,96,0.18)';
+  ctx.beginPath(); ctx.ellipse(0, -1, 5.2, 2.1, 0, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+  // 몸통(로브)
+  ctx.fillStyle = '#F4EFE4';
+  ctx.beginPath();
+  ctx.moveTo(-4.6, -3);
+  ctx.quadraticCurveTo(-5.4, -13, 0, -15);
+  ctx.quadraticCurveTo(5.4, -13, 4.6, -3);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(62,49,96,0.08)';
+  ctx.beginPath(); ctx.ellipse(0,-4,4.4,1.6,0,0,Math.PI*2); ctx.fill();
+  // 머리
+  ctx.fillStyle = '#3E3160';
+  ctx.beginPath(); ctx.arc(facing*0.6, -17.5, 3.1, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+/* ---------- 파티클(승리 시) ---------- */
+let confetti = [];
+function popConfetti(sx, sy){
+  const cols = ['#F2A0A8','#F4C06A','#8FC6C6','#B9A7DA','#F3D3A0'];
+  for(let i = 0; i < 26; i++){
+    confetti.push({
+      x:sx, y:sy, vx:(Math.random()-0.5)*70, vy:-Math.random()*80-30,
+      g:180, life:1, col:cols[i%cols.length], r:2+Math.random()*2
+    });
+  }
+}
+function updateConfetti(dt){
+  for(const c of confetti){
+    c.vy += c.g*dt; c.x += c.vx*dt; c.y += c.vy*dt; c.life -= dt*0.6;
+  }
+  confetti = confetti.filter(c => c.life > 0);
+}
+function drawConfetti(){
+  for(const c of confetti){
+    ctx.globalAlpha = Math.max(0, c.life);
+    ctx.fillStyle = c.col;
+    ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* ---------- 메인 드로우 ---------- */
+let lastT = performance.now();
+function frame(now){
+  const dt = Math.min(0.05, (now - lastT) / 1000);
+  lastT = now; time += dt;
+  update(dt);
+  render();
+  requestAnimationFrame(frame);
+}
+
+function update(dt){
+  // 장치 애니메이션
+  for(let i = mechAnim.length - 1; i >= 0; i--){
+    const a = mechAnim[i];
+    a.t += dt / 0.55;
+    if(a.t >= 1){ a.t = 1; mechAnim.splice(i,1); }
+  }
+  // 걷기 애니메이션
+  if(walking){
+    walkT += dt / walkDur;
+    if(walkT >= 1){
+      walkT = 1;
+      hero.x = walkTo.x; hero.y = walkTo.y; hero.z = walkTo.z;
+      walking = false;
+      if(path && path.length) startWalk();
+      else checkGoal();
+    } else {
+      const e = easeInOut(walkT);
+      hero.x = lerp(walkFrom.x, walkTo.x, e);
+      hero.y = lerp(walkFrom.y, walkTo.y, e);
+      hero.z = lerp(walkFrom.z, walkTo.z, e);
+    }
+  }
+  // 카메라 추적
+  const p = proj(hero.x, hero.y, hero.z);
+  camTargetX = p.sx; camTargetY = p.sy;
+  camX += (camTargetX - camX) * Math.min(1, dt*4.2);
+  camY += (camTargetY - camY) * Math.min(1, dt*4.2);
+  if(solved) bounce += dt;
+  updateConfetti(dt);
+}
+
+function checkGoal(){
+  const gp = level.goal;
+  if(Math.round(hero.x)===gp[0] && Math.round(hero.y)===gp[1] && Math.round(hero.z)===gp[2]){
+    solved = true;
+    progress[levelIdx] = true;
+    saveProgress();
+    buildDots();
+    sfxWin();
+    popConfettiAtHero();
+    setTimeout(showComplete, 650);
+  }
+}
+
+function showComplete(){
+  const ov = document.getElementById('overlay');
+  const isLast = levelIdx === LEVELS.length - 1;
+  ov.innerHTML = `<div class="card">
+    <div class="sup">${isLast ? 'THE END' : 'LEVEL CLEAR'}</div>
+    <h2>${isLast ? '모든 계곡을 지났습니다' : level.name + ' · 완료'}</h2>
+    <p>${isLast ? '착시의 계곡을 모두 탐험했어요.\n원한다면 처음부터 다시 걸어볼 수 있습니다.' : '길은 보이는 대로 존재하지 않습니다.\n다음 챕터가 기다리고 있어요.'}</p>
+    <div>
+      <button class="btn ghost" id="ovRetry">다시 걷기</button>
+      <button class="btn" id="ovNext">${isLast ? '처음으로' : '다음 챕터'}</button>
+    </div>
+  </div>`;
+  ov.classList.add('on');
+  document.getElementById('ovRetry').onclick = () => { ov.classList.remove('on'); loadLevel(levelIdx, true); };
+  document.getElementById('ovNext').onclick = () => {
+    ov.classList.remove('on');
+    loadLevel(isLast ? 0 : levelIdx + 1);
+  };
+}
+
+/* ---------- 렌더 ---------- */
+function tileColor(kind){
+  return level.colors[kind] || level.colors.main;
+}
+
+function drawTile(p, kind, highlight){
+  const sx = p.sx, sy = p.sy;
+  const col = tileColor(kind);
+  const top = highlight ? shade(col, 18) : col;
+  const left = shade(col, -26);
+  const right = shade(col, -42);
+  // 윗면(마름모)
+  ctx.beginPath();
+  ctx.moveTo(sx, sy - TH);
+  ctx.lineTo(sx + TW, sy);
+  ctx.lineTo(sx, sy + TH);
+  ctx.lineTo(sx - TW, sy);
+  ctx.closePath();
+  ctx.fillStyle = top; ctx.fill();
+  // 좌측면
+  ctx.beginPath();
+  ctx.moveTo(sx - TW, sy);
+  ctx.lineTo(sx, sy + TH);
+  ctx.lineTo(sx, sy + TH + TZ);
+  ctx.lineTo(sx - TW, sy + TZ);
+  ctx.closePath();
+  ctx.fillStyle = left; ctx.fill();
+  // 우측면
+  ctx.beginPath();
+  ctx.moveTo(sx + TW, sy);
+  ctx.lineTo(sx, sy + TH);
+  ctx.lineTo(sx, sy + TH + TZ);
+  ctx.lineTo(sx + TW, sy + TZ);
+  ctx.closePath();
+  ctx.fillStyle = right; ctx.fill();
+}
+
+function drawKnob(m){
+  if(!m.knob) return;
+  const p = proj(m.knob[0], m.knob[1], m.knob[2]);
+  const sx = p.sx, sy = p.sy - TZ*0.9;
+  ctx.save();
+  ctx.translate(sx, sy);
+  const pulse = 1 + Math.sin(time*2.4)*0.06;
+  ctx.scale(pulse, pulse);
+  ctx.beginPath(); ctx.arc(0,0,7,0,Math.PI*2);
+  ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fill();
+  ctx.lineWidth = 1.6; ctx.strokeStyle = 'rgba(62,49,96,0.35)'; ctx.stroke();
+  ctx.fillStyle = '#3E3160';
+  ctx.font = '8px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('⟳', 0, 0.5);
+  ctx.restore();
+}
+
+function render(){
+  ctx.clearRect(-1000, -1000, 3000, 3000);
+  ctx.save();
+  ctx.translate(W/2, H*0.42);
+  ctx.scale(SCALE, SCALE);
+
+  const g = buildGraph(level, states);
+  // depth sort
+  const order = level.tiles.map((t,i)=>i).filter(i => !g.hidden[i]);
+  order.sort((a,b) => {
+    const pa = g.pos[a], pb = g.pos[b];
+    return (pa.x+pa.y+pa.z*3) - (pb.x+pb.y+pb.z*3);
+  });
+
+  const heroSp = proj(hero.x, hero.y, hero.z);
+  const heroDepth = hero.x + hero.y + hero.z*3;
+
+  let heroDrawn = false;
+  for(const i of order){
+    const t = level.tiles[i];
+    const raw = tilePos(level, t, states);
+    const sp = proj(raw.x, raw.y, raw.z);
+
+    const depth = raw.x + raw.y + raw.z*3;
+    if(!heroDrawn && depth > heroDepth){
+      drawHeroAt();
+      heroDrawn = true;
+    }
+    drawTileAt(sp, t.kind);
+  }
+  if(!heroDrawn) drawHeroAt();
+
+  for(const m of level.mechs) drawKnob(m);
+
+  ctx.restore();
+  drawConfetti();
+}
+
+function drawTileAt(sp, kind){
+  drawTile({ sx: sp.sx - camX, sy: sp.sy - camY }, kind, false);
+}
+
+function drawHeroAt(){
+  const sp = proj(hero.x, hero.y, hero.z);
+  const bob = walking ? Math.abs(Math.sin(walkT*Math.PI)) * 3.4 : (solved ? Math.abs(Math.sin(bounce*5))*2 : Math.sin(time*1.8)*0.6);
+  const facing = walking ? Math.sign((walkTo.x-walkFrom.x) - (walkTo.y-walkFrom.y)) || 1 : 1;
+  drawHero(sp.sx - camX, sp.sy - camY, facing, bob);
+}
+
+function popConfettiAtHero(){
+  const sp = proj(hero.x, hero.y, hero.z);
+  popConfetti(W/2 + (sp.sx - camX) * SCALE, H*0.42 + (sp.sy - camY) * SCALE);
+}
+
+/* ---------- UI 버튼 ---------- */
+document.getElementById('btnRestart').addEventListener('click', () => loadLevel(levelIdx, true));
+document.getElementById('btnSound').addEventListener('click', (e) => {
+  soundOn = !soundOn;
+  e.currentTarget.innerHTML = soundOn ? '&#128266;' : '&#128263;';
+  e.currentTarget.style.opacity = soundOn ? '1' : '.5';
+});
+
+/* ---------- 시작 ---------- */
+resize();
+loadLevel(0);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
