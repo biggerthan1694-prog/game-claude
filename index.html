@@ -11,7 +11,7 @@
   --ink:#3E3160; --paper:#FFF8EE;
 }
 *{box-sizing:border-box;}
-html,body{height:100%;margin:0;padding:0;}
+html,body{height:100%;margin:0;padding:0;touch-action:none;overscroll-behavior:none;}
 body{
   background:linear-gradient(165deg,var(--bg1) 0%,var(--bg2) 100%);
   transition:background 900ms ease;
@@ -424,15 +424,18 @@ function startWalk(){
 function tryGoTo(tileIdx){
   if(walking || solved) return;
   const g = buildGraph(level, states);
-  const heroTileNow = findNearestTileIdx();
+  const heroTileNow = findNearestTileIdx(g);
   const p = findPath(g, heroTileNow, tileIdx);
   if(p === null) return;
   path = p;
   startWalk();
 }
 
-function findNearestTileIdx(){
-  const g = buildGraph(level, states);
+function findNearestTileIdx(g){
+  // 서 있는 타일 자체가 여전히 걸을 수 있는 상태라면 그게 정답이다.
+  // (거리로 추측하면 회전/승강 장치가 움직인 직후 엉뚱한 타일을 골라
+  //  다음 클릭이 무반응처럼 보일 수 있다)
+  if(g.adj.has(hero.tile)) return hero.tile;
   let best = -1, bd = Infinity;
   for(const [i] of g.adj){
     const p = g.pos[i];
@@ -486,13 +489,22 @@ function pickAt(px, py){
 }
 
 cv.addEventListener('pointerdown', e => {
-  const rect = cv.getBoundingClientRect();
-  const px = e.clientX - rect.left, py = e.clientY - rect.top;
-  const hit = pickAt(px, py);
-  if(!hit) return;
-  if(hit.type === 'mech') toggleMech(hit.idx);
-  else tryGoTo(hit.idx);
+  e.preventDefault(); // 모바일에서 더블탭 확대/제스처로 화면이 먹통처럼 보이는 것 방지
+  try{
+    const rect = cv.getBoundingClientRect();
+    const px = e.clientX - rect.left, py = e.clientY - rect.top;
+    const hit = pickAt(px, py);
+    if(!hit) return;
+    if(hit.type === 'mech') toggleMech(hit.idx);
+    else tryGoTo(hit.idx);
+  } catch(err){
+    console.error('input error, recovering:', err);
+    walking = false;
+  }
 });
+// 핀치줌 / 더블탭 확대 제스처가 게임 조작을 가로채지 않도록 차단
+document.addEventListener('dblclick', e => e.preventDefault());
+document.addEventListener('gesturestart', e => e.preventDefault());
 
 /* ---------- 캐릭터 그리기 ---------- */
 function drawHero(sx, sy, facing, bob){
@@ -550,8 +562,16 @@ let lastT = performance.now();
 function frame(now){
   const dt = Math.min(0.05, (now - lastT) / 1000);
   lastT = now; time += dt;
-  update(dt);
-  render();
+  // 어떤 이유로든 한 프레임에서 예외가 나도 루프 자체는 절대 멈추지 않게 한다.
+  // (안 그러면 requestAnimationFrame 재호출 줄에 못 닿아서 게임이 그대로
+  //  "먹통"이 되고, 이후엔 클릭해도 아무 반응이 없어 보인다)
+  try{
+    update(dt);
+    render();
+  } catch(err){
+    console.error('frame error, recovering:', err);
+    walking = false; // 잠금 상태로 굳지 않도록 안전하게 풀어준다
+  }
   requestAnimationFrame(frame);
 }
 
@@ -576,6 +596,15 @@ function update(dt){
       hero.x = lerp(walkFrom.x, walkTo.x, e);
       hero.y = lerp(walkFrom.y, walkTo.y, e);
       hero.z = lerp(walkFrom.z, walkTo.z, e);
+    }
+  } else if(!solved) {
+    // 걷고 있지 않을 때는 서 있는 타일이 장치와 함께 움직이면 그대로 따라간다
+    // (안 그러면 발밑 타일이 돌아가거나 올라간 뒤 다음 클릭의 경로탐색 기준점이
+    //  어긋나서 아무 반응이 없는 것처럼 보이는 "먹통" 현상이 생긴다)
+    const t = level.tiles[hero.tile];
+    if(t){
+      const raw = tilePos(level, t, states);
+      hero.x = raw.x; hero.y = raw.y; hero.z = raw.z;
     }
   }
   // 카메라 추적
