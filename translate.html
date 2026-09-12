@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<title>번역기</title>
+<style>
+  :root{
+    --bg:#FBE3C0; --bg2:#F0AE9A; --ink:#3E3160; --paper:#FFF8EE; --accent:#3E3160;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:linear-gradient(165deg,var(--bg) 0%,var(--bg2) 100%);
+    font-family:"Apple SD Gothic Neo","Pretendard","Malgun Gothic","Noto Sans KR",system-ui,-apple-system,sans-serif;
+    color:var(--ink);
+    display:flex;justify-content:center;
+    padding:32px 16px;
+  }
+  .card{
+    width:100%;max-width:640px;
+    background:var(--paper);
+    border-radius:20px;
+    box-shadow:0 12px 30px rgba(62,49,96,.15);
+    padding:24px;
+  }
+  h1{font-size:20px;margin:0 0 18px;letter-spacing:.02em;}
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;}
+  select{
+    flex:1;min-width:120px;
+    padding:10px 12px;border-radius:12px;border:1px solid rgba(62,49,96,.2);
+    background:#fff;color:var(--ink);font-size:14px;
+  }
+  button.swap{
+    border:none;background:transparent;color:var(--ink);
+    font-size:20px;cursor:pointer;padding:6px 10px;border-radius:10px;
+    transition:transform .2s ease;
+  }
+  button.swap:hover{background:rgba(62,49,96,.08);}
+  button.swap:active{transform:rotate(180deg);}
+  textarea{
+    width:100%;min-height:120px;resize:vertical;
+    padding:14px;border-radius:14px;border:1px solid rgba(62,49,96,.2);
+    font-size:15px;line-height:1.5;font-family:inherit;color:var(--ink);
+    background:#fff;
+  }
+  .out{
+    width:100%;min-height:120px;
+    padding:14px;border-radius:14px;
+    background:rgba(62,49,96,.06);
+    font-size:15px;line-height:1.5;white-space:pre-wrap;
+    color:var(--ink);
+  }
+  .actions{display:flex;justify-content:space-between;align-items:center;margin:14px 0;}
+  .translate-btn{
+    background:var(--accent);color:#fff;border:none;
+    padding:12px 22px;border-radius:14px;font-size:15px;font-weight:600;
+    cursor:pointer;transition:opacity .2s ease;
+  }
+  .translate-btn:disabled{opacity:.5;cursor:default;}
+  .translate-btn:hover:not(:disabled){opacity:.9;}
+  .status{font-size:12px;opacity:.6;}
+  .field-label{font-size:12px;opacity:.6;margin:0 0 6px 4px;}
+  @media (max-width:480px){
+    .card{padding:18px;}
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🌐 번역기</h1>
+
+  <div class="row">
+    <select id="fromLang"></select>
+    <button class="swap" id="swapBtn" title="언어 바꾸기">⇄</button>
+    <select id="toLang"></select>
+  </div>
+
+  <p class="field-label">원문</p>
+  <textarea id="srcText" placeholder="번역할 텍스트를 입력하세요..."></textarea>
+
+  <div class="actions">
+    <span class="status" id="status"></span>
+    <button class="translate-btn" id="translateBtn">번역하기</button>
+  </div>
+
+  <p class="field-label">번역 결과</p>
+  <div class="out" id="resultText"></div>
+</div>
+
+<script>
+const LANGS = [
+  ["ko","한국어"],["en","English"],["ja","日本語"],["zh","中文"],
+  ["es","Español"],["fr","Français"],["de","Deutsch"],["ru","Русский"],
+  ["vi","Tiếng Việt"],["th","ไทย"],["pt","Português"],["it","Italiano"]
+];
+
+const fromSel = document.getElementById('fromLang');
+const toSel = document.getElementById('toLang');
+LANGS.forEach(([code,name])=>{
+  const o1=document.createElement('option'); o1.value=code; o1.textContent=name;
+  const o2=o1.cloneNode(true);
+  fromSel.appendChild(o1); toSel.appendChild(o2);
+});
+fromSel.value='ko';
+toSel.value='en';
+
+document.getElementById('swapBtn').addEventListener('click', ()=>{
+  const a=fromSel.value, b=toSel.value;
+  fromSel.value=b; toSel.value=a;
+});
+
+const srcText = document.getElementById('srcText');
+const resultText = document.getElementById('resultText');
+const statusEl = document.getElementById('status');
+const btn = document.getElementById('translateBtn');
+
+async function translate(){
+  const text = srcText.value.trim();
+  if(!text){ resultText.textContent=''; return; }
+  const from = fromSel.value, to = toSel.value;
+  btn.disabled = true;
+  statusEl.textContent = '번역 중...';
+  resultText.textContent = '';
+  try{
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${from}|${to}`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('네트워크 오류');
+    const data = await res.json();
+    const translated = data?.responseData?.translatedText;
+    if(!translated) throw new Error('번역 결과 없음');
+    resultText.textContent = translated;
+    statusEl.textContent = '';
+  }catch(err){
+    resultText.textContent = '⚠️ 번역에 실패했습니다. 인터넷 연결을 확인해주세요.';
+    statusEl.textContent = '';
+    console.error(err);
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+btn.addEventListener('click', translate);
+srcText.addEventListener('keydown', (e)=>{
+  if((e.metaKey||e.ctrlKey) && e.key==='Enter') translate();
+});
+</script>
+</body>
+</html>
