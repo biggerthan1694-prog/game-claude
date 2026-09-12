@@ -748,7 +748,12 @@ function drawTile(p, kind, highlight){
 function drawKnob(m){
   if(!m.knob) return;
   const p = proj(m.knob[0], m.knob[1], m.knob[2]);
-  const sx = p.sx, sy = p.sy - TZ*0.9;
+  // 다른 모든 그리기(drawTileAt, drawHeroAt)처럼 카메라 오프셋을 빼야
+  // 화면에 실제로 보이는 위치와 클릭 판정 위치(pickAt)가 일치한다.
+  // 이걸 빼먹으면 카메라가 원점(0,0)일 때만 우연히 맞고, 조금이라도
+  // 벗어나면 손잡이가 클릭 판정 지점과 다른 곳에 그려져 눌러도
+  // 반응하지 않는 것처럼 보인다.
+  const sx = p.sx - camX, sy = p.sy - TZ*0.9 - camY;
   ctx.save();
   ctx.translate(sx, sy);
   const pulse = 1 + Math.sin(time*2.4)*0.06;
