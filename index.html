@@ -292,13 +292,51 @@ const cv = document.getElementById('stage');
 const ctx = cv.getContext('2d');
 let DPR = Math.min(2, window.devicePixelRatio || 1);
 let W, H, SCALE = 4.4;
+let levelCenterSx = 0, levelCenterSy = 0;
+
+/* 레벨 전체(장치가 움직일 수 있는 모든 위치 포함)가 화면 안에 들어오도록
+   확대 배율과 카메라 중심을 계산한다. 참고 이미지처럼 구조물 전체와
+   손잡이·목표 지점이 처음부터 다 보여야 캐릭터를 어디로 보내야 할지
+   가늠할 수 있다 — 캐릭터만 바짝 쫓아다니면 퍼즐이 안 보인다. */
+function computeFraming(lv){
+  let minSx = Infinity, maxSx = -Infinity, minSy = Infinity, maxSy = -Infinity;
+  function expand(x, y, z){
+    const sp = proj(x, y, z);
+    const top = sp.sy - TH, bottom = sp.sy + TH + TZ;
+    if(sp.sx < minSx) minSx = sp.sx;
+    if(sp.sx > maxSx) maxSx = sp.sx;
+    if(top < minSy) minSy = top;
+    if(bottom > maxSy) maxSy = bottom;
+  }
+  for(const t of lv.tiles){
+    expand(t.x, t.y, t.z);
+    if(t.m !== undefined){
+      const m = lv.mechs[t.m];
+      // 이 장치가 가질 수 있는 모든 상태를 훑어서, 손잡이를 눌렀을 때
+      // 타일이 이동하는 범위까지 전부 화면 안에 들어오게 한다.
+      for(let s = 0; s < m.states; s++){
+        const testStates = lv.mechs.map(mm => mm.state);
+        testStates[t.m] = s;
+        const p = tilePos(lv, t, testStates);
+        expand(p.x, p.y, p.z);
+      }
+    }
+  }
+  const spanX = Math.max(1, maxSx - minSx);
+  const spanY = Math.max(1, maxSy - minSy);
+  const marginX = 1.5, marginY = 1.8; // 위/아래 HUD·안내문과 안 겹치도록 세로 여유를 더 둔다
+  const fitScale = Math.min(W / (spanX * marginX), H / (spanY * marginY));
+  SCALE = Math.max(1.3, Math.min(fitScale, 8));
+  levelCenterSx = (minSx + maxSx) / 2;
+  levelCenterSy = (minSy + maxSy) / 2 - TH * 1.2;
+}
 
 function resize(){
   W = window.innerWidth; H = window.innerHeight;
   cv.width = W * DPR; cv.height = H * DPR;
   cv.style.width = W + 'px'; cv.style.height = H + 'px';
-  SCALE = Math.min(W, H) / 150;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if(level) computeFraming(level);
 }
 window.addEventListener('resize', resize);
 
@@ -347,26 +385,29 @@ function loadLevel(i, skipIntro){
   // 뒤늦게 발동해 오버레이가 캔버스 클릭을 가로채 먹통처럼 보이는 것을 방지
   clearTimeout(completeTimer);
   document.getElementById('overlay').classList.remove('on');
+  clearTimeout(introTimer);
+  document.getElementById('intro').classList.remove('on');
   document.getElementById('chapter').textContent = level.chapter;
   document.getElementById('levelName').textContent = level.name;
   document.body.style.setProperty('--bg1', level.bg[0]);
   document.body.style.setProperty('--bg2', level.bg[1]);
   document.body.style.background = `linear-gradient(165deg, ${level.bg[0]} 0%, ${level.bg[1]} 100%)`;
-  const g = buildGraph(level, states);
-  const p0 = g.pos[startIdx];
-  camTargetX = camX = (p0.x - p0.y) * TW;
-  camTargetY = camY = (p0.x + p0.y) * TH - p0.z * TZ;
+  computeFraming(level);
+  camTargetX = camX = levelCenterSx;
+  camTargetY = camY = levelCenterSy;
   showTip(level.tip);
   buildDots();
   if(!skipIntro) showIntro(level.chapter, level.name);
 }
 
+let introTimer = null;
 function showIntro(sup, nm){
   const el = document.getElementById('intro');
   document.getElementById('introSup').textContent = sup;
   document.getElementById('introName').textContent = nm;
   el.classList.add('on');
-  setTimeout(()=>el.classList.remove('on'), 1600);
+  clearTimeout(introTimer);
+  introTimer = setTimeout(()=>el.classList.remove('on'), 1600);
 }
 
 let tipTimer = null;
@@ -622,11 +663,14 @@ function update(dt){
       hero.x = raw.x; hero.y = raw.y; hero.z = raw.z;
     }
   }
-  // 카메라 추적
+  // 카메라: 구조물 전체가 계속 보이도록 레벨 중심을 기준으로 삼고,
+  // 캐릭터 쪽으로는 아주 살짝만 기울인다 (완전히 쫓아가면 손잡이나
+  // 목표 지점이 화면 밖으로 나가버려서 퍼즐이 안 보이게 된다)
   const p = proj(hero.x, hero.y, hero.z);
-  camTargetX = p.sx; camTargetY = p.sy;
-  camX += (camTargetX - camX) * Math.min(1, dt*4.2);
-  camY += (camTargetY - camY) * Math.min(1, dt*4.2);
+  camTargetX = levelCenterSx + (p.sx - levelCenterSx) * 0.18;
+  camTargetY = levelCenterSy + (p.sy - levelCenterSy) * 0.18;
+  camX += (camTargetX - camX) * Math.min(1, dt*2.6);
+  camY += (camTargetY - camY) * Math.min(1, dt*2.6);
   if(solved) bounce += dt;
   updateConfetti(dt);
 }
