@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>레이캐스트 FPS</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<canvas id="game-canvas"></canvas>
+
+<!-- ===== 메인 메뉴 ===== -->
+<div id="screen-main" class="screen">
+  <h1>레이캐스트 FPS</h1>
+  <div class="subtitle">Vanilla JS 레이캐스팅 슈터</div>
+  <div class="panel menu-buttons">
+    <button class="primary" id="btn-start">게임 시작</button>
+    <button id="btn-settings">설정</button>
+  </div>
+  <div class="small-note">최고 점수: <span id="main-highscore">0</span></div>
+</div>
+
+<!-- ===== 로드아웃 화면 ===== -->
+<div id="screen-loadout" class="screen hidden">
+  <h1 style="font-size:1.8em;">로드아웃</h1>
+  <div class="loadout-grid">
+    <div class="loadout-col">
+      <h3>스킨 선택</h3>
+      <div class="option-list" id="skin-list"></div>
+    </div>
+    <div class="loadout-col">
+      <h3>무기 2개 선택</h3>
+      <div class="option-list" id="weapon-list"></div>
+      <h3 style="margin-top:16px;">맵 선택</h3>
+      <div class="option-list" id="map-list"></div>
+    </div>
+    <div class="loadout-col">
+      <h3>미리보기</h3>
+      <canvas id="skin-preview-canvas" width="240" height="260"></canvas>
+    </div>
+  </div>
+  <div class="loadout-footer">
+    <button id="btn-loadout-back">뒤로</button>
+    <button class="primary" id="btn-loadout-start">전투 시작</button>
+  </div>
+</div>
+
+<!-- ===== 설정 화면 ===== -->
+<div id="screen-settings" class="screen hidden">
+  <h1 style="font-size:1.8em;">설정</h1>
+  <div class="panel" style="width:360px;">
+    <div class="settings-row">
+      <label>마우스 감도</label>
+      <input type="range" id="opt-sensitivity" min="0.0006" max="0.006" step="0.0001">
+    </div>
+    <div class="settings-row">
+      <label>효과음 볼륨</label>
+      <input type="range" id="opt-volume" min="0" max="1" step="0.05">
+    </div>
+    <div class="settings-row">
+      <label>FOV</label>
+      <input type="range" id="opt-fov" min="50" max="100" step="1">
+    </div>
+    <div class="settings-row">
+      <label>렌더 해상도</label>
+      <select id="opt-resolution">
+        <option value="1.0">1.0x (고화질)</option>
+        <option value="0.75">0.75x</option>
+        <option value="0.5">0.5x (고성능)</option>
+      </select>
+    </div>
+  </div>
+  <div class="menu-buttons" style="margin-top:16px;">
+    <button id="btn-settings-back">뒤로</button>
+  </div>
+</div>
+
+<!-- ===== 일시정지 화면 ===== -->
+<div id="screen-pause" class="screen hidden">
+  <h1 style="font-size:1.8em;">일시정지</h1>
+  <div class="menu-buttons">
+    <button class="primary" id="btn-resume">계속하기</button>
+    <button id="btn-pause-loadout">메인 메뉴로</button>
+  </div>
+</div>
+
+<!-- ===== 게임오버 화면 ===== -->
+<div id="screen-gameover" class="screen hidden">
+  <h1 style="font-size:1.8em;">게임 오버</h1>
+  <div class="panel">
+    <div class="stats-grid">
+      <div>점수: <span id="go-score">0</span></div>
+      <div>웨이브: <span id="go-wave">0</span></div>
+      <div>처치 수: <span id="go-kills">0</span></div>
+      <div>정확도: <span id="go-accuracy">0%</span></div>
+      <div>최고 점수: <span id="go-highscore">0</span></div>
+    </div>
+    <div class="menu-buttons">
+      <button class="primary" id="btn-retry">다시하기</button>
+      <button id="btn-go-loadout">로드아웃으로</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== HUD ===== -->
+<div id="hud" class="hidden">
+  <div id="top-bar">
+    <div id="wave-text">웨이브 1</div>
+    <div id="score-text">점수 0</div>
+  </div>
+  <div id="hp-panel">
+    <div id="hp-bar-bg"><div id="hp-bar-fill"></div></div>
+    <div id="hp-text">100 / 100</div>
+  </div>
+  <div id="ammo-panel">
+    <div id="ammo-text">12 / ∞</div>
+  </div>
+  <div id="weapon-slots"></div>
+  <canvas id="minimap-canvas" width="140" height="140"></canvas>
+  <div id="crosshair"></div>
+  <div id="killfeed"></div>
+  <div id="vignette"></div>
+  <div id="hurt-dir"></div>
+  <div id="center-msg"></div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/textures.js"></script>
+<script src="js/raycaster.js"></script>
+<script src="js/player.js"></script>
+<script src="js/weapons.js"></script>
+<script src="js/enemy.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
