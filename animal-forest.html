@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Animal Forest - 사과 채집</title>
+
+<!-- importmap을 쓰기 때문에 file:// 로 직접 열면 동작하지 않습니다. 반드시 `python3 -m http.server` 같은 로컬 서버로 여세요. -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #a8d8ea;
+    font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  canvas { display: block; }
+
+  /* ---- 좌상단 사과 카운터 ---- */
+  #hud {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    padding: 14px 22px;
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(10px) saturate(140%);
+    -webkit-backdrop-filter: blur(10px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(60, 90, 70, 0.18);
+    color: #3f5c46;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+    user-select: none;
+    pointer-events: none;
+  }
+  #appleCount {
+    display: inline-block;
+    min-width: 1.2em;
+    text-align: center;
+    color: #d94c3d;
+    transform-origin: 50% 60%;
+  }
+  #appleCount.pop { animation: countPop 0.38s cubic-bezier(0.34, 1.7, 0.5, 1); }
+  @keyframes countPop {
+    0%   { transform: scale(1); }
+    35%  { transform: scale(1.45); }
+    100% { transform: scale(1); }
+  }
+
+  /* ---- 하단 중앙 조작 안내 ---- */
+  #controls {
+    position: fixed;
+    bottom: 26px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: calc(100vw - 32px);
+    user-select: none;
+    pointer-events: none;
+  }
+  .hint {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(8px) saturate(130%);
+    -webkit-backdrop-filter: blur(8px) saturate(130%);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 999px;
+    box-shadow: 0 6px 18px rgba(60, 90, 70, 0.14);
+    color: #4a6350;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: background 0.18s ease, color 0.18s ease,
+                box-shadow 0.18s ease, transform 0.18s ease;
+  }
+  .hint .key {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(120, 150, 130, 0.25);
+    font-size: 12px;
+    font-weight: 800;
+    color: #3f5c46;
+    transition: background 0.18s ease, color 0.18s ease;
+  }
+  /* 상호작용 대상이 사정거리에 들어오면 강조 */
+  .hint.active {
+    background: rgba(255, 214, 107, 0.92);
+    color: #6b4a00;
+    box-shadow: 0 8px 22px rgba(224, 168, 40, 0.45);
+    transform: translateY(-3px);
+  }
+  .hint.active .key {
+    background: #fff;
+    color: #b06b00;
+  }
+
+  /* ---- 짧은 안내 토스트 ---- */
+  #toast {
+    position: fixed;
+    bottom: 86px;
+    left: 50%;
+    transform: translate(-50%, 8px);
+    padding: 9px 18px;
+    border-radius: 999px;
+    background: rgba(63, 92, 70, 0.82);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    user-select: none;
+    pointer-events: none;
+  }
+  #toast.show {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+</style>
+</head>
+<body>
+
+<div id="hud">🍎 사과 개수: <span id="appleCount">0</span>개</div>
+
+<div id="controls">
+  <div class="hint" id="hintMove"><span class="key">WASD</span> 이동</div>
+  <div class="hint" id="hintShake"><span class="key">E</span> 나무 흔들기</div>
+  <div class="hint" id="hintPick"><span class="key">Space</span> 줍기</div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* =========================================================================
+ * CONFIG — 매직 넘버 모음
+ * ====================================================================== */
+const CONFIG = {
+  debug: {
+    orbitControls: false,   // true 로 바꾸면 추적 카메라 대신 OrbitControls 사용
+  },
+  world: {
+    groundSize: 100,
+    bound: 48,              // 플레이어가 나갈 수 없는 맵 경계 (±)
+    spawnRange: 38,         // 나무/바위 랜덤 배치 범위 (±)
+    minGap: 4,              // 오브젝트 간 최소 간격
+    placeTries: 300,
+    fogNear: 34,
+    fogFar: 96,
+  },
+  colors: {
+    sky:    0xa8d8ea,
+    grass:  0x8ed081,
+    trunk:  0x9c6b42,
+    leaf:   0x6cc47f,
+    leaf2:  0x58b46b,
+    rock:   0xa6adb4,
+    wall:   0xfff2d8,
+    roof:   0xe8604c,
+    door:   0xa9703f,
+    window: 0xbfe9f5,
+    apple:  0xe03e32,
+    skin:   0xffdcc2,
+    shirt:  0x6fc9e3,
+    pants:  0x4a7fb5,
+    hair:   0x6b4a35,
+  },
+  lights: {
+    ambientColor: 0xffffff,
+    ambientIntensity: 0.6,
+    sunColor: 0xfff4e0,
+    sunIntensity: 1.0,
+    // r155 부터 조명이 물리 기반 단위로 바뀌어서, 위 intensity 값을 그대로 쓰면
+    // 의도한 파스텔톤보다 어둡게 렌더된다(공식 마이그레이션 가이드: intensity * PI).
+    intensityScale: Math.PI,
+    sunPos: { x: 20, y: 30, z: 10 },
+    shadowMapSize: 2048,
+    shadowExtent: 40,       // shadow camera 가 맵 전체(±40)를 덮도록
+    shadowNear: 0.5,
+    shadowFar: 100,
+  },
+  player: {
+    speed: 6,               // units / sec
+    radius: 0.5,            // 충돌 반지름
+    turnLerp: 12,           // 회전 보간 속도
+    walkFreq: 9,            // 걷기 사인파 주파수
+    walkSwing: 0.62,        // 팔다리 최대 스윙(rad)
+  },
+  loop: {
+    // 한 번에 시뮬레이션할 수 있는 최대 시간. 프레임이 길어지면 이 크기로 잘게 나눠
+    // 여러 번 돌리기 때문에, 저사양에서도 속도가 느려지지 않으면서 콜라이더를 뚫지 않는다.
+    maxStep: 0.05,
+    // 탭 전환 등으로 delta 가 폭증했을 때 한 프레임에 시뮬레이션할 총 시간의 상한
+    maxFrame: 0.25,
+  },
+  camera: {
+    fov: 50,
+    near: 0.1,
+    far: 300,
+    offset: { x: 0, y: 12, z: 14 },
+    lerp: 0.08,
+    lookAtHeight: 1.1,
+  },
+  trees: {
+    count: 10,
+    colliderRadius: 0.9,
+  },
+  rocks: {
+    count: 5,
+    colliderRadius: 1.2,
+  },
+  house: {
+    position: { x: -9, z: -9 },
+    width: 6, height: 4, depth: 5,
+    roofHeight: 2.6,
+    clearRadius: 9,         // 이 반경 안에는 나무/바위를 놓지 않음
+  },
+  shake: {
+    duration: 0.6,          // 흔들림 총 길이(초)
+    amplitude: 0.17,        // rotation.z 최대 진폭(rad)
+    frequency: 20,          // 사인파 각속도
+    dropAt: 0.3,            // 흔들림 시작 후 사과가 떨어지는 시점(초)
+  },
+  apple: {
+    radius: 0.25,
+    gravity: -20,           // units / s^2
+    restY: 0.25,            // 바닥에 놓였을 때의 y
+    bounce: 0.4,            // 반발 계수
+    bounceCutoff: 2.0,      // 이 속도 미만이면 정지
+  },
+  harvest: {
+    reach: 2.0,             // E 키로 흔들 수 있는 거리
+    cooldown: 3.0,          // 나무별 쿨다운(초)
+    maxPerTree: 3,          // 나무 하나당 최대 수확량
+    pickupRange: 1.5,       // Space 로 주울 수 있는 거리
+  },
+};
+
+/* =========================================================================
+ * 초기화 — 렌더러 / 씬 / 카메라
+ * ====================================================================== */
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(CONFIG.colors.sky);
+scene.fog = new THREE.Fog(CONFIG.colors.sky, CONFIG.world.fogNear, CONFIG.world.fogFar);
+
+const camera = new THREE.PerspectiveCamera(
+  CONFIG.camera.fov,
+  window.innerWidth / window.innerHeight,
+  CONFIG.camera.near,
+  CONFIG.camera.far
+);
+camera.position.set(
+  CONFIG.camera.offset.x,
+  CONFIG.camera.offset.y,
+  CONFIG.camera.offset.z
+);
+
+// 디버그 전용 OrbitControls — 주석이 아니라 CONFIG.debug 플래그로 on/off
+let orbit = null;
+if (CONFIG.debug.orbitControls) {
+  orbit = new OrbitControls(camera, renderer.domElement);
+  orbit.enableDamping = true;
+  orbit.target.set(0, 1, 0);
+}
+
+const clock = new THREE.Clock();
+
+/* =========================================================================
+ * 조명
+ * ====================================================================== */
+const LIGHT_SCALE = CONFIG.lights.intensityScale;
+
+const ambient = new THREE.AmbientLight(
+  CONFIG.lights.ambientColor,
+  CONFIG.lights.ambientIntensity * LIGHT_SCALE
+);
+scene.add(ambient);
+
+const sun = new THREE.DirectionalLight(
+  CONFIG.lights.sunColor,
+  CONFIG.lights.sunIntensity * LIGHT_SCALE
+);
+sun.position.set(CONFIG.lights.sunPos.x, CONFIG.lights.sunPos.y, CONFIG.lights.sunPos.z);
+sun.castShadow = true;
+sun.shadow.mapSize.set(CONFIG.lights.shadowMapSize, CONFIG.lights.shadowMapSize);
+sun.shadow.camera.near = CONFIG.lights.shadowNear;
+sun.shadow.camera.far = CONFIG.lights.shadowFar;
+sun.shadow.camera.left = -CONFIG.lights.shadowExtent;
+sun.shadow.camera.right = CONFIG.lights.shadowExtent;
+sun.shadow.camera.top = CONFIG.lights.shadowExtent;
+sun.shadow.camera.bottom = -CONFIG.lights.shadowExtent;
+sun.shadow.bias = -0.0005;
+sun.shadow.normalBias = 0.02;
+sun.shadow.camera.updateProjectionMatrix();
+scene.add(sun);
+scene.add(sun.target); // target 기본값 (0,0,0)
+
+/* =========================================================================
+ * 월드 생성 — 바닥 / 나무 / 바위 / 집
+ * ====================================================================== */
+const colliders = [];   // { position: Vector3, radius: number }
+const boxColliders = []; // { minX, maxX, minZ, maxZ }
+const trees = [];
+
+// --- 잔디 바닥 ---
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(CONFIG.world.groundSize, CONFIG.world.groundSize),
+  new THREE.MeshLambertMaterial({ color: CONFIG.colors.grass })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// --- 랜덤 배치 헬퍼 (겹침 방지 리트라이) ---
+const placed = [];   // 이미 배치된 { x, z } 목록
+const housePos = CONFIG.house.position;
+
+function findFreeSpot(minGap) {
+  const r = CONFIG.world.spawnRange;
+  for (let i = 0; i < CONFIG.world.placeTries; i++) {
+    const x = (Math.random() * 2 - 1) * r;
+    const z = (Math.random() * 2 - 1) * r;
+
+    // 플레이어 스폰 지점(원점) 비우기
+    if (Math.hypot(x, z) < 6) continue;
+    // 집 주변 비우기
+    if (Math.hypot(x - housePos.x, z - housePos.z) < CONFIG.house.clearRadius) continue;
+
+    let ok = true;
+    for (const p of placed) {
+      if (Math.hypot(x - p.x, z - p.z) < minGap) { ok = false; break; }
+    }
+    if (!ok) continue;
+
+    placed.push({ x, z });
+    return { x, z };
+  }
+  return null; // 자리를 못 찾으면 이 오브젝트는 건너뜀
+}
+
+// --- 나무 ---
+function createTree(x, z) {
+  const group = new THREE.Group();
+  group.position.set(x, 0, z);
+
+  const trunkH = 2.2 + Math.random() * 0.8;
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.32, 0.46, trunkH, 10),
+    new THREE.MeshLambertMaterial({ color: CONFIG.colors.trunk })
+  );
+  trunk.position.y = trunkH / 2;
+  trunk.castShadow = true;
+  trunk.receiveShadow = true;
+  group.add(trunk);
+
+  // 초록 구체 2~3개로 수관 구성
+  const blobCount = 2 + Math.floor(Math.random() * 2);
+  let topY = trunkH;
+  for (let i = 0; i < blobCount; i++) {
+    const rad = 1.15 + Math.random() * 0.45;
+    const blob = new THREE.Mesh(
+      new THREE.SphereGeometry(rad, 16, 12),
+      new THREE.MeshLambertMaterial({
+        color: i % 2 === 0 ? CONFIG.colors.leaf : CONFIG.colors.leaf2,
+      })
+    );
+    blob.position.set(
+      (Math.random() - 0.5) * 1.0,
+      trunkH + 0.45 + i * 0.75,
+      (Math.random() - 0.5) * 1.0
+    );
+    blob.castShadow = true;
+    blob.receiveShadow = true;
+    group.add(blob);
+    topY = Math.max(topY, blob.position.y + rad * 0.35);
+  }
+
+  group.userData = {
+    shaking: false,
+    shakeTime: 0,
+    dropped: false,      // 이번 흔들림에서 사과를 떨어뜨렸는지
+    cooldown: 0,
+    remaining: CONFIG.harvest.maxPerTree,
+    topY,
+  };
+
+  scene.add(group);
+  trees.push(group);
+  colliders.push({ position: group.position, radius: CONFIG.trees.colliderRadius });
+  return group;
+}
+
+for (let i = 0; i < CONFIG.trees.count; i++) {
+  const spot = findFreeSpot(CONFIG.world.minGap);
+  if (spot) createTree(spot.x, spot.z);
+}
+
+// --- 바위 ---
+function createRock(x, z) {
+  const group = new THREE.Group();
+  group.position.set(x, 0, z);
+
+  const mat = new THREE.MeshLambertMaterial({ color: CONFIG.colors.rock });
+  const chunks = 2 + Math.floor(Math.random() * 2);
+  for (let i = 0; i < chunks; i++) {
+    const rad = 0.55 + Math.random() * 0.5;
+    const chunk = new THREE.Mesh(new THREE.DodecahedronGeometry(rad, 0), mat);
+    chunk.position.set(
+      (Math.random() - 0.5) * 1.1,
+      rad * (0.45 + Math.random() * 0.25),
+      (Math.random() - 0.5) * 1.1
+    );
+    chunk.scale.set(
+      0.85 + Math.random() * 0.6,
+      0.6 + Math.random() * 0.5,
+      0.85 + Math.random() * 0.6
+    );
+    chunk.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+    chunk.castShadow = true;
+    chunk.receiveShadow = true;
+    group.add(chunk);
+  }
+
+  scene.add(group);
+  colliders.push({ position: group.position, radius: CONFIG.rocks.colliderRadius });
+  return group;
+}
+
+for (let i = 0; i < CONFIG.rocks.count; i++) {
+  const spot = findFreeSpot(CONFIG.world.minGap);
+  if (spot) createRock(spot.x, spot.z);
+}
+
+// --- 집 (원점 근처 고정, 충돌은 AABB) ---
+function createHouse() {
+  const h = CONFIG.house;
+  const group = new THREE.Group();
+  group.position.set(h.position.x, 0, h.position.z);
+
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(h.width, h.height, h.depth),
+    new THREE.MeshLambertMaterial({ color: CONFIG.colors.wall })
+  );
+  body.position.y = h.height / 2;
+  body.castShadow = true;
+  body.receiveShadow = true;
+  group.add(body);
+
+  // radialSegments 4 → 사각뿔 지붕
+  const roof = new THREE.Mesh(
+    new THREE.ConeGeometry(h.width * 0.82, h.roofHeight, 4),
+    new THREE.MeshLambertMaterial({ color: CONFIG.colors.roof })
+  );
+  roof.position.y = h.height + h.roofHeight / 2;
+  roof.rotation.y = Math.PI / 4;
+  roof.castShadow = true;
+  roof.receiveShadow = true;
+  group.add(roof);
+
+  const door = new THREE.Mesh(
+    new THREE.BoxGeometry(1.2, 2.0, 0.2),
+    new THREE.MeshLambertMaterial({ color: CONFIG.colors.door })
+  );
+  door.position.set(0, 1.0, h.depth / 2 + 0.06);
+  door.castShadow = true;
+  group.add(door);
+
+  for (const wx of [-1.9, 1.9]) {
+    const win = new THREE.Mesh(
+      new THREE.BoxGeometry(1.1, 1.1, 0.2),
+      new THREE.MeshLambertMaterial({ color: CONFIG.colors.window })
+    );
+    win.position.set(wx, 2.4, h.depth / 2 + 0.06);
+    win.castShadow = true;
+    group.add(win);
+  }
+
+  scene.add(group);
+  boxColliders.push({
+    minX: h.position.x - h.width / 2,
+    maxX: h.position.x + h.width / 2,
+    minZ: h.position.z - h.depth / 2,
+    maxZ: h.position.z + h.depth / 2,
+  });
+  return group;
+}
+createHouse();
+
+/* =========================================================================
+ * 플레이어 — 구체(머리) + 실린더(몸통) + 박스 4개(팔/다리)
+ * ====================================================================== */
+const player = new THREE.Group();
+player.position.set(0, 0, 0);
+scene.add(player);
+
+const skinMat  = new THREE.MeshLambertMaterial({ color: CONFIG.colors.skin });
+const shirtMat = new THREE.MeshLambertMaterial({ color: CONFIG.colors.shirt });
+const pantsMat = new THREE.MeshLambertMaterial({ color: CONFIG.colors.pants });
+const hairMat  = new THREE.MeshLambertMaterial({ color: CONFIG.colors.hair });
+
+// 머리
+const head = new THREE.Mesh(new THREE.SphereGeometry(0.52, 20, 16), skinMat);
+head.position.y = 1.78;
+head.castShadow = true;
+player.add(head);
+
+// 머리카락 (윗부분만 덮는 반구)
+const hair = new THREE.Mesh(
+  new THREE.SphereGeometry(0.545, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.55),
+  hairMat
+);
+hair.position.copy(head.position);
+hair.castShadow = true;
+player.add(hair);
+
+// 몸통
+const torso = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.38, 0.44, 0.9, 14),
+  shirtMat
+);
+torso.position.y = 1.0;
+torso.castShadow = true;
+player.add(torso);
+
+// 팔/다리는 pivot(어깨/골반) 아래에 메쉬를 매달아 회전시킨다
+function createLimb(pivotPos, size, mat) {
+  const pivot = new THREE.Object3D();
+  pivot.position.set(pivotPos.x, pivotPos.y, pivotPos.z);
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), mat);
+  mesh.position.y = -size.y / 2;
+  mesh.castShadow = true;
+  pivot.add(mesh);
+  player.add(pivot);
+  return pivot;
+}
+
+const armL = createLimb({ x: -0.5, y: 1.36, z: 0 }, { x: 0.2, y: 0.72, z: 0.2 }, skinMat);
+const armR = createLimb({ x:  0.5, y: 1.36, z: 0 }, { x: 0.2, y: 0.72, z: 0.2 }, skinMat);
+const legL = createLimb({ x: -0.19, y: 0.58, z: 0 }, { x: 0.24, y: 0.6, z: 0.24 }, pantsMat);
+const legR = createLimb({ x:  0.19, y: 0.58, z: 0 }, { x: 0.24, y: 0.6, z: 0.24 }, pantsMat);
+
+let facing = 0;      // 현재 Y 회전
+let walkPhase = 0;   // 걷기 사인파 위상
+let walkBlend = 0;   // 0(정지) ~ 1(이동) 부드러운 전환
+
+/* =========================================================================
+ * 입력 — keydown/keyup + Set, 한글 입력 상태에서도 동작하도록 event.code 사용
+ * ====================================================================== */
+const keys = new Set();        // 현재 눌려있는 code
+const pressedThisFrame = new Set(); // 이번 프레임에 새로 눌린 code (엣지 트리거)
+
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') e.preventDefault(); // 페이지 스크롤 방지
+  if (e.repeat) return;
+  keys.add(e.code);
+  pressedThisFrame.add(e.code);
+});
+window.addEventListener('keyup', (e) => {
+  keys.delete(e.code);
+});
+// 포커스를 잃으면 키가 눌린 채로 남지 않도록 정리
+window.addEventListener('blur', () => keys.clear());
+
+/* =========================================================================
+ * 충돌 — XZ 평면 원-원 + 집 AABB, 밀어내기 방식이라 벽을 따라 미끄러진다
+ * ====================================================================== */
+function resolveCollisions(pos) {
+  const pr = CONFIG.player.radius;
+
+  // 2회 반복: 여러 콜라이더 사이에 끼었을 때 더 안정적
+  for (let iter = 0; iter < 2; iter++) {
+    for (const c of colliders) {
+      const dx = pos.x - c.position.x;
+      const dz = pos.z - c.position.z;
+      const minDist = c.radius + pr;
+      let dist = Math.hypot(dx, dz);
+      if (dist >= minDist) continue;
+      if (dist < 1e-5) { pos.x += minDist; continue; } // 정확히 중심에 겹친 예외
+      // 침투한 만큼만 법선 방향으로 밀어냄 → 접선 성분은 남아 slide
+      const push = (minDist - dist) / dist;
+      pos.x += dx * push;
+      pos.z += dz * push;
+    }
+
+    for (const b of boxColliders) {
+      const minX = b.minX - pr, maxX = b.maxX + pr;
+      const minZ = b.minZ - pr, maxZ = b.maxZ + pr;
+      if (pos.x <= minX || pos.x >= maxX || pos.z <= minZ || pos.z >= maxZ) continue;
+      // 가장 얕게 박힌 면으로 밀어내기
+      const dLeft = pos.x - minX, dRight = maxX - pos.x;
+      const dNear = pos.z - minZ, dFar = maxZ - pos.z;
+      const m = Math.min(dLeft, dRight, dNear, dFar);
+      if (m === dLeft)       pos.x = minX;
+      else if (m === dRight) pos.x = maxX;
+      else if (m === dNear)  pos.z = minZ;
+      else                   pos.z = maxZ;
+    }
+  }
+
+  // 맵 경계 클램프
+  const bound = CONFIG.world.bound;
+  pos.x = Math.min(bound, Math.max(-bound, pos.x));
+  pos.z = Math.min(bound, Math.max(-bound, pos.z));
+}
+
+/* =========================================================================
+ * 플레이어 업데이트 — 이동 / 회전 보간 / 걷기 모션
+ * ====================================================================== */
+function updatePlayer(dt) {
+  let mx = 0, mz = 0;
+  if (keys.has('KeyW')) mz -= 1;
+  if (keys.has('KeyS')) mz += 1;
+  if (keys.has('KeyA')) mx -= 1;
+  if (keys.has('KeyD')) mx += 1;
+
+  const moving = (mx !== 0 || mz !== 0);
+
+  if (moving) {
+    const len = Math.hypot(mx, mz);
+    mx /= len; mz /= len;
+
+    // delta 기반 이동 (프레임 의존 금지)
+    player.position.x += mx * CONFIG.player.speed * dt;
+    player.position.z += mz * CONFIG.player.speed * dt;
+    resolveCollisions(player.position);
+
+    // 진행 방향으로 최단 경로 각도 보간
+    const target = Math.atan2(mx, mz);
+    let diff = target - facing;
+    diff = ((diff + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+    facing += diff * Math.min(1, CONFIG.player.turnLerp * dt);
+    // 같은 방향으로 계속 돌아도 각도가 무한히 누적되지 않도록 [-PI, PI] 로 정규화
+    facing = ((facing + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+    player.rotation.y = facing;
+  }
+
+  // 이동 중일 때만 팔다리 스윙 (멈추면 부드럽게 0으로)
+  walkBlend += ((moving ? 1 : 0) - walkBlend) * Math.min(1, 10 * dt);
+  if (moving) walkPhase += dt * CONFIG.player.walkFreq;
+  const swing = Math.sin(walkPhase) * CONFIG.player.walkSwing * walkBlend;
+
+  armL.rotation.x =  swing;
+  armR.rotation.x = -swing;
+  legL.rotation.x = -swing;
+  legR.rotation.x =  swing;
+}
+
+/* =========================================================================
+ * 상호작용 — 나무 흔들기 / 사과 낙하 / 줍기
+ * ====================================================================== */
+const apples = [];
+let appleCount = 0;
+
+function nearestTree() {
+  let best = null, bestDist = Infinity;
+  for (const t of trees) {
+    const d = Math.hypot(player.position.x - t.position.x, player.position.z - t.position.z);
+    if (d < bestDist) { bestDist = d; best = t; }
+  }
+  return { tree: best, dist: bestDist };
+}
+
+function nearestApple() {
+  let best = null, bestDist = Infinity;
+  for (const a of apples) {
+    const d = Math.hypot(player.position.x - a.position.x, player.position.z - a.position.z);
+    if (d < bestDist) { bestDist = d; best = a; }
+  }
+  return { apple: best, dist: bestDist };
+}
+
+function shakeTree(tree) {
+  tree.userData.shaking = true;
+  tree.userData.shakeTime = 0;
+  tree.userData.dropped = false;
+  tree.userData.cooldown = CONFIG.harvest.cooldown;
+}
+
+function spawnApple(tree) {
+  const geo = new THREE.SphereGeometry(CONFIG.apple.radius, 14, 10);
+  const mat = new THREE.MeshLambertMaterial({ color: CONFIG.colors.apple });
+  const apple = new THREE.Mesh(geo, mat);
+  apple.castShadow = true;
+  apple.receiveShadow = true;
+  apple.position.set(
+    tree.position.x + (Math.random() - 0.5) * 1.4,
+    tree.userData.topY,
+    tree.position.z + (Math.random() - 0.5) * 1.4
+  );
+  apple.userData = { vy: 0, settled: false };
+  scene.add(apple);
+  apples.push(apple);
+}
+
+function pickupApple(apple) {
+  scene.remove(apple);
+  apple.geometry.dispose();
+  apple.material.dispose();
+  const i = apples.indexOf(apple);
+  if (i !== -1) apples.splice(i, 1);
+
+  appleCount++;
+  updateCountUI();
+}
+
+function updateTrees(dt) {
+  for (const t of trees) {
+    const u = t.userData;
+    if (u.cooldown > 0) u.cooldown = Math.max(0, u.cooldown - dt);
+    if (!u.shaking) continue;
+
+    u.shakeTime += dt;
+    const d = CONFIG.shake.duration;
+
+    if (u.shakeTime >= d) {
+      u.shaking = false;
+      t.rotation.z = 0;     // 정확히 0으로 복귀
+      continue;
+    }
+    // 감쇠 사인파
+    const damp = 1 - u.shakeTime / d;
+    t.rotation.z = Math.sin(u.shakeTime * CONFIG.shake.frequency) * CONFIG.shake.amplitude * damp;
+
+    // 0.3초 시점에 사과 생성
+    if (!u.dropped && u.shakeTime >= CONFIG.shake.dropAt) {
+      u.dropped = true;
+      if (u.remaining > 0) {
+        u.remaining--;
+        spawnApple(t);
+      }
+    }
+  }
+}
+
+function updateApples(dt) {
+  const cfg = CONFIG.apple;
+  for (const a of apples) {
+    if (a.userData.settled) continue;
+    a.userData.vy += cfg.gravity * dt;
+    a.position.y += a.userData.vy * dt;
+
+    if (a.position.y <= cfg.restY) {
+      a.position.y = cfg.restY;
+      if (Math.abs(a.userData.vy) > cfg.bounceCutoff) {
+        a.userData.vy = -a.userData.vy * cfg.bounce;  // 살짝 바운스
+      } else {
+        a.userData.vy = 0;
+        a.userData.settled = true;
+      }
+    }
+  }
+}
+
+function handleInteractions() {
+  // E — 가장 가까운 나무 흔들기
+  if (pressedThisFrame.has('KeyE')) {
+    const { tree, dist } = nearestTree();
+    if (tree && dist <= CONFIG.harvest.reach) {
+      if (tree.userData.remaining <= 0) {
+        showToast('이 나무의 사과는 다 떨어졌어요 🌳');
+      } else if (tree.userData.cooldown > 0) {
+        showToast(`잠시 후 다시 흔들 수 있어요 (${tree.userData.cooldown.toFixed(1)}초)`);
+      } else {
+        shakeTree(tree);
+      }
+    }
+  }
+
+  // Space — 가장 가까운 사과 줍기
+  if (pressedThisFrame.has('Space')) {
+    const { apple, dist } = nearestApple();
+    if (apple && dist <= CONFIG.harvest.pickupRange) pickupApple(apple);
+  }
+}
+
+/* =========================================================================
+ * UI
+ * ====================================================================== */
+const countEl = document.getElementById('appleCount');
+const hintShakeEl = document.getElementById('hintShake');
+const hintPickEl = document.getElementById('hintPick');
+const toastEl = document.getElementById('toast');
+let toastTimer = null;
+
+function updateCountUI() {
+  countEl.textContent = String(appleCount);
+  countEl.classList.remove('pop');
+  void countEl.offsetWidth;  // 애니메이션 재시작을 위한 reflow
+  countEl.classList.add('pop');
+}
+
+function showToast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1600);
+}
+
+function updateHintUI() {
+  const { tree, dist } = nearestTree();
+  const canShake = !!tree && dist <= CONFIG.harvest.reach && tree.userData.remaining > 0;
+  hintShakeEl.classList.toggle('active', canShake);
+
+  const { apple, dist: appleDist } = nearestApple();
+  hintPickEl.classList.toggle('active', !!apple && appleDist <= CONFIG.harvest.pickupRange);
+}
+
+/* =========================================================================
+ * 카메라 추적 + resize
+ * ====================================================================== */
+const camTarget = new THREE.Vector3();
+const lookTarget = new THREE.Vector3();
+
+function updateCamera() {
+  if (orbit) { orbit.update(); return; }
+
+  camTarget.set(
+    player.position.x + CONFIG.camera.offset.x,
+    player.position.y + CONFIG.camera.offset.y,
+    player.position.z + CONFIG.camera.offset.z
+  );
+  camera.position.lerp(camTarget, CONFIG.camera.lerp);
+
+  lookTarget.set(player.position.x, player.position.y + CONFIG.camera.lookAtHeight, player.position.z);
+  camera.lookAt(lookTarget);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+/* =========================================================================
+ * 메인 루프
+ * ====================================================================== */
+function animate() {
+  requestAnimationFrame(animate);
+
+  // 프레임이 길어도 총 이동량은 실제 경과 시간에 비례하도록 고정 스텝으로 쪼개서 돌린다.
+  // (delta 를 그냥 잘라내면 저사양에서 캐릭터가 느려지고, 자르지 않으면 벽을 뚫는다)
+  let remaining = Math.min(clock.getDelta(), CONFIG.loop.maxFrame);
+  while (remaining > 0) {
+    const step = Math.min(remaining, CONFIG.loop.maxStep);
+    updatePlayer(step);
+    updateTrees(step);
+    updateApples(step);
+    remaining -= step;
+  }
+
+  handleInteractions();
+  updateHintUI();
+  updateCamera();
+
+  pressedThisFrame.clear();   // 엣지 트리거는 프레임마다 소거
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>
