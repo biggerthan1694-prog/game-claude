@@ -1,0 +1,12 @@
+{
+  "name": "raspinfo-community",
+  "version": "1.0.0",
+  "private": true,
+  "description": "raspinfo.com 커뮤니티 서버 — 의존성 없는 Node + SQLite 게시판",
+  "type": "module",
+  "engines": { "node": ">=22.5.0" },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server.js",
+    "test": "node --disable-warning=ExperimentalWarning --test "test/*.test.js""
+  }
+}

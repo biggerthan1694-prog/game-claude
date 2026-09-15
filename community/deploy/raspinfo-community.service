@@ -1,0 +1,35 @@
+[Unit]
+Description=raspinfo 커뮤니티 서버
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=raspinfo
+Group=raspinfo
+WorkingDirectory=/srv/raspinfo-community
+ExecStart=/usr/bin/node --disable-warning=ExperimentalWarning server.js
+Restart=on-failure
+RestartSec=3
+
+# 리버스 프록시 뒤에서만 받는다
+Environment=HOST=127.0.0.1
+Environment=PORT=8080
+Environment=SITE_NAME=raspinfo
+Environment=TRUST_PROXY=1
+Environment=COMMUNITY_DB=/var/lib/raspinfo-community/community.db
+# openssl rand -hex 32 으로 만든 값을 넣으세요
+Environment=SESSION_SECRET=CHANGE_ME
+
+# 샌드박스
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/raspinfo-community
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

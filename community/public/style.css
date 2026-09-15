@@ -1,0 +1,173 @@
+/* raspinfo 커뮤니티 — 단일 스타일시트 */
+
+:root{
+  --bg:#f7f7f5; --panel:#ffffff; --ink:#1d1f21; --muted:#6b7177;
+  --line:#e3e5e8; --accent:#a4243b; --accent-ink:#ffffff;
+  --ok-bg:#e8f3ec; --ok-ink:#1f5c38; --bad-bg:#fbeaec; --bad-ink:#8c1d31;
+  --radius:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#15171a; --panel:#1d2024; --ink:#e7e9ea; --muted:#9aa2aa;
+    --line:#2c3138; --accent:#e0637a; --accent-ink:#1a1204;
+    --ok-bg:#16301f; --ok-ink:#8fd4a8; --bad-bg:#33181e; --bad-ink:#f0a0ad;
+  }
+}
+
+*{box-sizing:border-box;}
+html{-webkit-text-size-adjust:100%;}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"Pretendard","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",system-ui,-apple-system,sans-serif;
+  font-size:15px; line-height:1.65;
+}
+a{color:inherit; text-decoration:none;}
+a:hover{text-decoration:underline;}
+
+.wrap{max-width:860px; margin:0 auto; padding:0 16px;}
+
+/* ------------------------------------------------------------- 상단바 */
+
+.top{background:var(--panel); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:10;}
+.top .wrap{display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding-top:10px; padding-bottom:10px;}
+.brand{font-weight:800; font-size:18px; letter-spacing:-.02em;}
+.boards{display:flex; gap:12px; flex-wrap:wrap; font-size:14px; color:var(--muted);}
+.boards a.on{color:var(--accent); font-weight:700;}
+.search{margin-left:auto;}
+.search input{ min-width:0;
+  width:150px; padding:6px 10px; border:1px solid var(--line); border-radius:999px;
+  background:var(--bg); color:var(--ink); font:inherit; font-size:13px;
+}
+.search input:focus{outline:2px solid var(--accent); outline-offset:1px; width:190px;}
+.account{display:flex; align-items:center; gap:10px; font-size:14px;}
+.account .who a{font-weight:700;}
+.account .cta{color:var(--accent); font-weight:700;}
+
+main.wrap{padding-top:24px; padding-bottom:48px;}
+
+/* ------------------------------------------------------------- 공통 */
+
+h1{font-size:23px; margin:0 0 6px; letter-spacing:-.02em;}
+h1.big{font-size:56px; margin-bottom:8px;}
+.sec{font-size:15px; margin:28px 0 10px; color:var(--muted); font-weight:700;}
+.desc{margin:0 0 16px; color:var(--muted); font-size:14px;}
+.muted{color:var(--muted);}
+.hint{color:var(--muted); font-size:13px;}
+.center{text-align:center;}
+.narrow{max-width:360px; margin:32px auto;}
+.right{display:flex; gap:8px; justify-content:flex-end; align-items:center;}
+.inline{display:inline;}
+
+.head{display:flex; align-items:flex-start; gap:12px; margin-bottom:8px;}
+.head > div:first-child{flex:1; min-width:0;}
+
+.flash{padding:9px 13px; border-radius:var(--radius); font-size:14px; margin:0 0 16px;}
+.flash.ok{background:var(--ok-bg); color:var(--ok-ink);}
+.flash.bad{background:var(--bad-bg); color:var(--bad-ink);}
+
+.empty{color:var(--muted); background:var(--panel); border:1px dashed var(--line);
+  border-radius:var(--radius); padding:26px; text-align:center; font-size:14px;}
+
+/* ------------------------------------------------------------- 버튼 */
+
+.btn{
+  display:inline-block; padding:8px 15px; border-radius:var(--radius); border:1px solid transparent;
+  background:var(--accent); color:var(--accent-ink); font:inherit; font-size:14px; font-weight:700;
+  cursor:pointer; white-space:nowrap;
+}
+.btn:hover{text-decoration:none; filter:brightness(1.08);}
+.btn.ghost{background:transparent; color:var(--ink); border-color:var(--line);}
+.btn.ghost:hover{border-color:var(--muted); filter:none;}
+.btn.danger, .linkish.danger{color:var(--accent);}
+.btn.full{width:100%;}
+.linkish{background:none; border:none; padding:0; color:var(--muted); font:inherit;
+  font-size:14px; cursor:pointer; text-decoration:underline;}
+
+/* ------------------------------------------------------------- 게시판 카드 */
+
+.cards{display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; margin-bottom:8px;}
+.card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+  padding:14px; display:flex; flex-direction:column; gap:3px;}
+.card:hover{border-color:var(--accent); text-decoration:none;}
+.card-name{font-weight:700;}
+.card-desc{font-size:13px; color:var(--muted); line-height:1.45;}
+.card-count{font-size:12px; color:var(--muted); margin-top:4px;}
+
+/* ------------------------------------------------------------- 글 목록 */
+
+.rows{list-style:none; margin:0; padding:0; background:var(--panel);
+  border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;}
+.row + .row{border-top:1px solid var(--line);}
+.row-main{display:block; padding:12px 15px;}
+a.row-main:hover{background:rgba(127,127,127,.06); text-decoration:none;}
+.row-title{display:block; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.row-title .cnt{color:var(--accent); font-size:13px; margin-left:6px; font-weight:700;}
+.row-sub{display:block; font-size:12.5px; color:var(--muted); margin-top:2px;}
+
+/* ------------------------------------------------------------- 글 본문 */
+
+.post{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:22px;}
+.crumb{margin:0 0 8px; font-size:13px; color:var(--accent); font-weight:700;}
+.post .meta{margin:0 0 18px; font-size:13px; color:var(--muted); border-bottom:1px solid var(--line); padding-bottom:14px;}
+.body{word-break:break-word; overflow-wrap:anywhere;}
+.body a{color:var(--accent); text-decoration:underline;}
+.code{background:var(--bg); border:1px solid var(--line); border-radius:8px;
+  padding:12px 14px; overflow-x:auto; font-size:13px; line-height:1.55;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+.code code{white-space:pre;}
+code.inline{background:var(--bg); border:1px solid var(--line); border-radius:5px;
+  padding:1px 5px; font-size:13.5px; overflow-wrap:anywhere;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+.controls{display:flex; gap:8px; justify-content:flex-end; margin-top:22px;
+  border-top:1px solid var(--line); padding-top:16px;}
+
+/* ------------------------------------------------------------- 댓글 */
+
+.comment-list{list-style:none; margin:0 0 18px; padding:0; background:var(--panel);
+  border:1px solid var(--line); border-radius:var(--radius);}
+.comment{padding:13px 16px;}
+.comment + .comment{border-top:1px solid var(--line);}
+.comment-meta{font-size:13px; color:var(--muted); display:flex; gap:8px; align-items:center; margin-bottom:4px;}
+.comment-meta a:first-child{color:var(--ink); font-weight:700;}
+.comment-body{word-break:break-word; overflow-wrap:anywhere;}
+
+/* ------------------------------------------------------------- 폼 */
+
+.stack{display:flex; flex-direction:column; gap:12px;}
+.stack label{display:flex; flex-direction:column; gap:5px; font-size:13px; font-weight:700; color:var(--muted);}
+input[type=text], input[type=password], input[type=search], input[type=number], textarea{
+  padding:9px 11px; border:1px solid var(--line); border-radius:8px;
+  background:var(--panel); color:var(--ink); font:inherit; font-size:15px; font-weight:400; width:100%;
+}
+textarea{resize:vertical; min-height:90px; line-height:1.6;}
+input:focus, textarea:focus{outline:2px solid var(--accent); outline-offset:1px; border-color:transparent;}
+
+/* ------------------------------------------------------------- 페이지 이동 */
+
+.pages{display:flex; gap:6px; justify-content:center; margin:22px 0; flex-wrap:wrap;}
+.pg{min-width:34px; text-align:center; padding:6px 9px; border:1px solid var(--line);
+  border-radius:8px; font-size:14px; background:var(--panel);}
+.pg:hover{text-decoration:none; border-color:var(--muted);}
+.pg.now{background:var(--accent); color:var(--accent-ink); border-color:var(--accent); font-weight:700;}
+.pg.off{opacity:.35;}
+
+/* ------------------------------------------------------------- 바닥 */
+
+.foot{border-top:1px solid var(--line); padding:20px 0; color:var(--muted); font-size:13px;}
+
+/* ------------------------------------------------------------- 좁은 화면 */
+
+@media (max-width:620px){
+  .top .wrap{gap:8px 10px;}
+  .brand{flex:1 1 auto; min-width:0;}
+  .account{flex:0 0 auto;}          /* 1행: 브랜드 + 계정 */
+  .account{order:1;}
+  .search{order:2; width:100%; margin-left:0;}   /* 2행: 검색 */
+  .search input, .search input:focus{width:100%;}
+  /* flex 아이템의 기본 min-width:auto가 가로 넘침을 만든다 */
+  .boards{order:3; width:100%; min-width:0; flex-wrap:nowrap; overflow-x:auto;
+    white-space:nowrap; padding-bottom:2px;}
+  .cards{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));}
+  .post{padding:18px 15px;}
+  h1.big{font-size:44px;}
+}
