@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; worker-src 'self' blob:; connect-src 'self'"
+    />
+    <title>친절한 코드 에디터</title>
+    <link rel="stylesheet" href="app://-/monaco/vs/editor/editor.main.css" />
+    <link rel="stylesheet" href="app://-/styles.css" />
+  </head>
+  <body>
+    <div class="kc-layout">
+      <!-- 왼쪽: 탐색기 -->
+      <aside class="kc-sidebar" id="sidebar">
+        <div class="kc-sidebar-head">
+          <span class="kc-sidebar-title" id="folderName">탐색기</span>
+          <div class="kc-sidebar-actions">
+            <button class="kc-icon-btn" id="btnNewFile" title="새 파일 만들기">＋</button>
+            <button class="kc-icon-btn" id="btnNewFolder" title="새 폴더 만들기">🗀</button>
+            <button class="kc-icon-btn" id="btnRefresh" title="새로 고침">⟳</button>
+            <button class="kc-icon-btn" id="btnCloseFolder" title="폴더 닫기">✕</button>
+          </div>
+        </div>
+        <div class="kc-tree" id="tree" tabindex="0"></div>
+        <div class="kc-sidebar-empty" id="sidebarEmpty">
+          <p>아직 열린 폴더가 없어요.</p>
+          <button class="kc-primary-btn" id="btnOpenFolderSide">폴더 열기</button>
+          <p class="kc-hint">Ctrl + K 를 누른 뒤 O 를 눌러도 열려요.</p>
+        </div>
+      </aside>
+
+      <div class="kc-resizer" id="resizer" title="드래그해서 너비 조절"></div>
+
+      <!-- 오른쪽: 탭 + 편집기 -->
+      <main class="kc-main">
+        <div class="kc-tabbar" id="tabbar"></div>
+        <div class="kc-editor-host">
+          <div id="editor"></div>
+
+          <!-- 시작 화면 -->
+          <section class="kc-welcome" id="welcome">
+            <div class="kc-welcome-inner">
+              <div class="kc-welcome-brand">
+                <div class="kc-logo">&lt;/&gt;</div>
+                <div>
+                  <h1>친절한 코드 에디터</h1>
+                  <p class="kc-tagline">
+                    VS Code 와 <b>같은 편집 엔진(Monaco)</b> 을 써서, 자동 완성·문법 강조·오류 표시가
+                    그대로 동작합니다.
+                  </p>
+                </div>
+              </div>
+
+              <div class="kc-welcome-cols">
+                <div class="kc-welcome-col">
+                  <h2>시작하기</h2>
+                  <button class="kc-link-btn" data-command="open-folder">
+                    📁 폴더 열기 <kbd>Ctrl</kbd>+<kbd>K</kbd> <kbd>Ctrl</kbd>+<kbd>O</kbd>
+                  </button>
+                  <button class="kc-link-btn" data-command="open-file">
+                    📄 파일 열기 <kbd>Ctrl</kbd>+<kbd>O</kbd>
+                  </button>
+                  <button class="kc-link-btn" data-command="new-file">
+                    ✨ 새 파일 만들기 <kbd>Ctrl</kbd>+<kbd>N</kbd>
+                  </button>
+                  <button class="kc-link-btn" data-command="show-shortcuts">
+                    ⌨️ 단축키 전부 보기 <kbd>Ctrl</kbd>+<kbd>K</kbd> <kbd>Ctrl</kbd>+<kbd>S</kbd>
+                  </button>
+
+                  <h2 class="kc-mt">최근 폴더</h2>
+                  <div id="recentList" class="kc-recent-list">
+                    <p class="kc-hint">아직 연 폴더가 없습니다.</p>
+                  </div>
+                </div>
+
+                <div class="kc-welcome-col">
+                  <h2>자동 완성 이렇게 쓰세요</h2>
+                  <ol class="kc-tips">
+                    <li>
+                      코드를 입력하면 <b>자동으로</b> 후보 목록이 뜹니다. 안 뜨면
+                      <kbd>Ctrl</kbd>+<kbd>Space</kbd> 를 누르세요.
+                    </li>
+                    <li><kbd>↑</kbd> <kbd>↓</kbd> 로 고르고 <kbd>Tab</kbd> 또는 <kbd>Enter</kbd> 로 넣습니다.</li>
+                    <li>
+                      <code>for</code>, <code>fn</code>, <code>html5</code> 처럼 짧게 치면
+                      <b>스니펫</b>(코드 틀)이 통째로 들어갑니다.
+                    </li>
+                    <li><kbd>Ctrl</kbd>+<kbd>P</kbd> 로 파일 이름만 쳐서 빠르게 이동할 수 있어요.</li>
+                    <li><kbd>F1</kbd> 은 명령 팔레트. 기능 이름을 한국어로 찾을 수 있습니다.</li>
+                  </ol>
+                  <p class="kc-note">
+                    JavaScript · TypeScript · HTML · CSS · JSON 은 문맥까지 이해하는 지능형 완성이,
+                    그 밖의 언어는 문서 안 단어 + 스니펫 완성이 동작합니다.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div class="kc-loading" id="loading">
+            <div class="kc-spinner"></div>
+            <p>편집기를 준비하고 있어요...</p>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- 상태 표시줄 -->
+    <footer class="kc-statusbar" id="statusbar">
+      <span class="kc-status-left">
+        <span id="statusFile">파일이 열려 있지 않습니다</span>
+      </span>
+      <span class="kc-status-right">
+        <button class="kc-status-btn" id="statusPos" title="줄로 이동 (Ctrl+G)">줄 1, 열 1</button>
+        <button class="kc-status-btn" id="statusIndent" title="들여쓰기 칸 수 바꾸기">공백: 2</button>
+        <span class="kc-status-item">UTF-8</span>
+        <button class="kc-status-btn" id="statusLang" title="언어 모드">일반 텍스트</button>
+        <button class="kc-status-btn" id="statusTheme" title="테마 바꾸기 (Ctrl+K Ctrl+T)">🌙 어둡게</button>
+      </span>
+    </footer>
+
+    <!-- 빠른 열기 (Ctrl+P) -->
+    <div class="kc-overlay" id="quickOpen" hidden>
+      <div class="kc-quick-box">
+        <input id="quickInput" type="text" placeholder="파일 이름을 입력하세요 (Esc 로 닫기)" autocomplete="off" />
+        <div class="kc-quick-list" id="quickList"></div>
+      </div>
+    </div>
+
+    <!-- 이름 입력 (새 파일/폴더/이름 바꾸기) -->
+    <div class="kc-overlay" id="promptBox" hidden>
+      <div class="kc-quick-box kc-prompt">
+        <label id="promptLabel" for="promptInput">이름</label>
+        <input id="promptInput" type="text" autocomplete="off" />
+        <div class="kc-prompt-actions">
+          <button class="kc-ghost-btn" id="promptCancel">취소</button>
+          <button class="kc-primary-btn" id="promptOk">확인</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 단축키 도움말 -->
+    <div class="kc-overlay" id="shortcuts" hidden>
+      <div class="kc-sheet">
+        <div class="kc-sheet-head">
+          <h2>단축키 모음</h2>
+          <button class="kc-icon-btn" id="shortcutsClose" title="닫기">✕</button>
+        </div>
+        <div class="kc-sheet-body" id="shortcutsBody"></div>
+      </div>
+    </div>
+
+    <div class="kc-toast-host" id="toastHost"></div>
+
+    <script src="app://-/monaco/vs/loader.js"></script>
+    <script src="app://-/completions.js"></script>
+    <script src="app://-/app.js"></script>
+  </body>
+</html>

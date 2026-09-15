@@ -1,0 +1,31 @@
+{
+  "name": "kindcode",
+  "productName": "KindCode",
+  "version": "1.0.0",
+  "description": "VS Code 스타일 자동 완성을 갖춘 친절한 한국어 코드 에디터",
+  "main": "src/main/main.js",
+  "author": {
+    "name": "KindCode"
+  },
+  "license": "MIT",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "dist": "electron-builder --win nsis portable",
+    "dist:installer": "electron-builder --win nsis",
+    "dist:portable": "electron-builder --win portable",
+    "pack": "electron-builder --dir",
+    "icon": "python build/make_icon.py"
+  },
+  "dependencies": {
+    "monaco-editor": "^0.52.2"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  }
+}

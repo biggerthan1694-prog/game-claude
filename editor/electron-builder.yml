@@ -1,0 +1,76 @@
+# ─────────────────────────────────────────────────────────────
+#  Windows 설치 마법사(.exe) + 무설치 포터블(.exe) 빌드 설정
+#  빌드:  npm run dist       (결과물은 dist\ 폴더)
+# ─────────────────────────────────────────────────────────────
+appId: com.kindcode.editor
+productName: KindCode
+copyright: Copyright © 2026 KindCode
+
+directories:
+  output: dist
+  buildResources: build
+
+# 패키지에 넣을 파일. monaco-editor 는 min 빌드만 넣어 용량을 줄인다.
+files:
+  - src/**/*
+  - package.json
+  - node_modules/**/*
+  - '!node_modules/monaco-editor/esm/**'
+  - '!node_modules/monaco-editor/dev/**'
+  - '!node_modules/monaco-editor/min-maps/**'
+  - '!node_modules/**/{test,tests,__tests__,example,examples,docs}/**'
+  - '!node_modules/**/*.{md,map,ts.map}'
+
+asar: true
+npmRebuild: false
+compression: maximum
+
+win:
+  icon: build/icon.ico
+  executableName: KindCode
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  # "연결 프로그램"에 등록할 파일 형식 (원하지 않으면 이 블록을 통째로 지우세요)
+  fileAssociations:
+    - ext: js
+      description: JavaScript 파일
+      icon: build/icon.ico
+    - ext: ts
+      description: TypeScript 파일
+      icon: build/icon.ico
+    - ext: json
+      description: JSON 파일
+      icon: build/icon.ico
+    - ext: css
+      description: CSS 파일
+      icon: build/icon.ico
+    - ext: md
+      description: 마크다운 파일
+      icon: build/icon.ico
+
+# ── 설치 마법사 ──────────────────────────────────────────────
+nsis:
+  oneClick: false                       # 한 방에 설치하지 않고 마법사 화면을 보여 준다
+  perMachine: false                     # 기본은 "나만 사용" (관리자 권한 없이 설치 가능)
+  allowElevation: true                  # 모든 사용자용 설치를 고르면 권한 요청
+  allowToChangeInstallationDirectory: true   # 설치 폴더 직접 고르기
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: 친절한 코드 에디터
+  uninstallDisplayName: 친절한 코드 에디터 ${version}
+  license: build/license_ko.txt         # 마법사의 사용 조건 화면
+  language: '1042'                      # 한국어 마법사
+  runAfterFinish: true                  # 설치 끝나면 바로 실행
+  deleteAppDataOnUninstall: false        # 설정은 제거해도 남겨 둔다
+  include: build/installer.nsh          # 마우스 우클릭 메뉴 추가
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
+  artifactName: ${productName}-Setup-${version}.exe
+
+portable:
+  artifactName: ${productName}-Portable-${version}.exe
