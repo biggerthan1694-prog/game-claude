@@ -65,6 +65,17 @@ npm run dist:portable   # 포터블만
 > ⚠️ **Windows PC 에서 빌드해야 합니다.** 리눅스/맥에서 Windows 설치 마법사를 만들려면 Wine 이 필요합니다.
 > 자세한 안내는 [BUILD-WINDOWS.md](BUILD-WINDOWS.md) 를 보세요.
 
+### 실행하려는데 Windows 가 막는다면
+
+서명하지 않은 프로그램이라 그렇습니다. Electron 앱의 본체부터 서명이 없어서 생기는,
+KindCode 만의 문제가 아닌 일반적인 현상입니다.
+
+- **SmartScreen**(파란 창): [추가 정보] → [실행] 으로 넘어갑니다.
+- **스마트 앱 컨트롤**(Windows 11 새로 설치한 PC): 우회 버튼이 없습니다.
+  `fix-smart-app-control.ps1` 을 오른쪽 클릭 → PowerShell에서 실행 하면 원인을 알려 줍니다.
+  해결책(다른 PC 에서 쓰기 / 코드 서명 / 기능 끄기)은
+  [BUILD-WINDOWS.md 4번](BUILD-WINDOWS.md#4-실행하려니-windows-가-막을-때) 에 정리해 두었습니다.
+
 ---
 
 ## 폴더 구조
@@ -73,6 +84,7 @@ npm run dist:portable   # 포터블만
 editor/
 ├─ build-windows.bat        더블클릭 한 번으로 설치 파일까지 만드는 스크립트
 ├─ run-dev.bat              개발 모드로 바로 실행
+├─ fix-smart-app-control.ps1  Windows 가 실행을 막을 때 원인을 알려 주는 진단 도구
 ├─ electron-builder.yml     설치 마법사(NSIS) 설정
 ├─ build/
 │  ├─ icon.ico              앱·설치 마법사 아이콘 (16~256px)

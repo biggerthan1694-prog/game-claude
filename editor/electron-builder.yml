@@ -34,6 +34,24 @@ win:
       arch: [x64]
     - target: portable
       arch: [x64]
+  # ── 코드 서명 ────────────────────────────────────────────────
+  # 서명하지 않으면 SmartScreen 경고가 뜨고, Windows 11 의 "스마트 앱 컨트롤"이
+  # 켜진 PC 에서는 아예 실행이 막힙니다(예외 허용 버튼이 없습니다).
+  # 인증서가 생기면 아래 둘 중 하나의 주석을 푸세요.
+  #
+  # (가) Microsoft Trusted Signing — 월 10달러 수준, 가장 잘 먹힙니다
+  # azureSignOptions:
+  #   endpoint: https://eus.codesigning.azure.net
+  #   codeSigningAccountName: 내-서명-계정-이름
+  #   certificateProfileName: 내-인증서-프로필-이름
+  #   → 빌드 전에 Entra ID 인증 정보를 환경 변수로 넘겨야 합니다:
+  #     set AZURE_TENANT_ID=...  /  set AZURE_CLIENT_ID=...  /  set AZURE_CLIENT_SECRET=...
+  #
+  # (나) 가지고 있는 .pfx 파일로 서명
+  # certificateFile: C:\경로\인증서.pfx
+  # rfc3161TimeStampServer: http://timestamp.digicert.com
+  #   → 비밀번호는 여기 적지 말고 환경 변수로: set CSC_KEY_PASSWORD=비밀번호
+
   # "연결 프로그램"에 등록할 파일 형식 (원하지 않으면 이 블록을 통째로 지우세요)
   fileAssociations:
     - ext: js
